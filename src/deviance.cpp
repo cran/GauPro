@@ -19,7 +19,7 @@ double deviance_part(arma::vec theta, double nug, arma::mat X, arma::mat Z, arma
 
 
 // [[Rcpp::export]]
-double devianceCC(arma::vec theta, double nug, arma::mat X, arma::mat Z, arma::mat K) {
+double devianceC(arma::vec theta, double nug, arma::mat X, arma::mat Z, arma::mat K) {
   // Twice as fast to this compared to devianceC or just R version
   int N = X.n_rows;
   arma::mat Kchol = chol(K);
