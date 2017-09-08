@@ -1,7 +1,7 @@
 Package: GauPro
 Type: Package
 Title: Gaussian Process Fitting
-Version: 0.2.0
+Version: 0.2.1
 Author: Collin Erickson
 Maintainer: Collin Erickson <collinberickson@gmail.com>
 Description: Fits a Gaussian process model to data. Gaussian processes
@@ -15,9 +15,9 @@ LazyData: TRUE
 LinkingTo: Rcpp, RcppArmadillo
 Imports: Rcpp, R6, lbfgs
 RoxygenNote: 6.0.1
-Suggests: testthat, knitr, rmarkdown, microbenchmark, numDeriv
+Suggests: testthat, knitr, rmarkdown, microbenchmark, numDeriv, MASS
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2017-08-17 03:07:20 UTC; cbe117
+Packaged: 2017-09-08 15:00:26 UTC; cbe117
 Repository: CRAN
-Date/Publication: 2017-08-17 03:24:22 UTC
+Date/Publication: 2017-09-08 15:15:53 UTC

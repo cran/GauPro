@@ -12,7 +12,7 @@
 
 <meta name="author" content="Collin Erickson" />
 
-<meta name="date" content="2017-08-16" />
+<meta name="date" content="2017-09-08" />
 
 <title>Leave-one-out cross-validation and error correction</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Leave-one-out cross-validation and error correction</h1>
 <h4 class="author"><em>Collin Erickson</em></h4>
-<h4 class="date"><em>2017-08-16</em></h4>
+<h4 class="date"><em>2017-09-08</em></h4>
 
 
 
@@ -83,11 +83,13 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">n &lt;-<span class="st"> </span><span class="dv">200</span>
 m1 &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="kw">runif</span>(n<span class="op">*</span>n),<span class="dt">ncol=</span>n)
 b1 &lt;-<span class="st"> </span><span class="kw">runif</span>(n)
-microbenchmark<span class="op">::</span><span class="kw">microbenchmark</span>(<span class="kw">solve</span>(m1, b1), m1 <span class="op">%*%</span><span class="st"> </span>b1)</code></pre></div>
+<span class="cf">if</span> (<span class="kw">requireNamespace</span>(<span class="st">&quot;microbenchmark&quot;</span>, <span class="dt">quietly =</span> <span class="ot">TRUE</span>)) {
+  microbenchmark<span class="op">::</span><span class="kw">microbenchmark</span>(<span class="kw">solve</span>(m1, b1), m1 <span class="op">%*%</span><span class="st"> </span>b1)
+}</code></pre></div>
 <pre><code>## Unit: microseconds
-##           expr      min       lq       mean   median       uq      max
-##  solve(m1, b1) 2044.245 2065.151 2491.44001 2091.570 2385.776 9468.603
-##      m1 %*% b1   58.158   58.917   63.39906   59.678   62.909  142.923
+##           expr      min       lq       mean   median       uq       max
+##  solve(m1, b1) 1970.124 2011.177 2473.07021 2038.354 2159.041 23449.522
+##      m1 %*% b1   56.637   58.158   63.97019   58.919   62.910   255.056
 ##  neval
 ##    100
 ##    100</code></pre>
@@ -123,14 +125,16 @@ Ainv_shortcut &lt;-<span class="st"> </span>E <span class="op">+</span><span cla
 <span class="kw">summary</span>(<span class="kw">c</span>(Ainv <span class="op">-</span><span class="st"> </span>Ainv_shortcut))</code></pre></div>
 <pre><code>##       Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
 ## -4.768e-03 -2.300e-08  0.000e+00  0.000e+00  2.300e-08  3.838e-03</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">microbenchmark<span class="op">::</span><span class="kw">microbenchmark</span>(<span class="kw">solve</span>(A), E <span class="op">+</span><span class="st"> </span>E <span class="op">%*%</span><span class="st"> </span>b <span class="op">%*%</span><span class="st"> </span>g <span class="op">/</span><span class="st"> </span>(<span class="dv">1</span><span class="op">-</span><span class="kw">sum</span>(g<span class="op">*</span>b)))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="cf">if</span> (<span class="kw">requireNamespace</span>(<span class="st">&quot;microbenchmark&quot;</span>, <span class="dt">quietly =</span> <span class="ot">TRUE</span>)) {
+  microbenchmark<span class="op">::</span><span class="kw">microbenchmark</span>(<span class="kw">solve</span>(A), E <span class="op">+</span><span class="st"> </span>E <span class="op">%*%</span><span class="st"> </span>b <span class="op">%*%</span><span class="st"> </span>g <span class="op">/</span><span class="st"> </span>(<span class="dv">1</span><span class="op">-</span><span class="kw">sum</span>(g<span class="op">*</span>b)))
+}</code></pre></div>
 <pre><code>## Unit: microseconds
-##                                expr      min       lq      mean    median
-##                            solve(A) 6079.139 6329.253 7589.3874 7003.3830
-##  E + E %*% b %*% g/(1 - sum(g * b))  288.885  318.914  852.7826  346.4725
+##                                expr      min        lq      mean    median
+##                            solve(A) 6225.484 6412.6890 7628.8212 6524.4430
+##  E + E %*% b %*% g/(1 - sum(g * b))  290.027  332.5995  912.6056  359.0175
 ##         uq      max neval
-##  7749.3540 19658.28   100
-##   369.2795 48696.97   100</code></pre>
+##  7962.7875 18375.40   100
+##   397.5985 42455.53   100</code></pre>
 <p>In terms of the covariance matrices already calculated, this is the following, where <span class="math inline">\(M_{-i}\)</span> is the matrix <span class="math inline">\(M\)</span> with the ith row and column removed, and <span class="math inline">\(M_{i,-i}\)</span> is the ith row of the matrix <span class="math inline">\(M\)</span> with the value from the ith column removed.</p>
 <p><span class="math display">\[ R(X_{-i})^{-1} = R(X)_{-i} -
 \frac{(R(X)_{-i}R(X)_{-i,i}) (R(X)^{-1})_{i,-i}^T }{1 + (R(X)^{-1})_{i,-i}^T R(X)_{-i,i}}\]</span></p>

@@ -1,3 +1,8 @@
+# GauPro 0.2.1
+
+Fixing minor errors from the 0.2.0 version.
+
+
 # GauPro 0.2.0
 
 Added kernel models that use kernels and trends.
