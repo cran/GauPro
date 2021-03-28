@@ -1,6 +1,12 @@
+# GauPro 0.2.3
+
+Minor changes.
+
 # GauPro 0.2.2
 
-Fixing Valgrind error from 0.2.1
+Fixing Valgrind error from 0.2.1.
+
+Accepted to CRAN on 9/11/2017.
 
 # GauPro 0.2.1
 

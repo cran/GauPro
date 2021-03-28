@@ -7,112 +7,314 @@ vignette: >
   %\VignetteIndexEntry{Spatial derivatives of Gaussian process models}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+  
+references:
+- id: halvorsen
+  title: sum of squares of dependent gaussian random variables
+  author:
+  - family: halvorsen
+    given: kjetil b
+  container-title: Mathematics Stack Exchange
+  URL: 'https://math.stackexchange.com/q/442916'
+  publisher: Mathematics Stack Exchange
+  issued:
+    year: 2015
+    month: 4
+- id: mchutchon
+  title: Differentiating Gaussian Processes
+  author:
+  - family: McHutchon
+    given: Andrew
+  URL: 'http://mlg.eng.cam.ac.uk/mchutchon/DifferentiatingGPs.pdf'
+
 ---
 
 
 This vignette covers the derivatives of the surface created by a Gaussian process model with respect to the spatial dimensions. 
-The other vignette has derivatives of the deviance (likelihood) with respect to the parameters.
+The other vignette, **Derivatives for estimating Gaussian process parameters**, 
+has derivatives of the deviance (likelihood) with respect to the parameters.
+For an explanation of notation and basic equations, see the vignette **Introduction to Gaussian Processes**.
+
+Here we assume that we have $n$ data points $Y_X$ that are the function values corresponding
+to the rows of the $n$ by $d$ design matrix $X$.
+We have a mean function $\mu$ and covariance function $\Sigma$.
+
+$y(x)$ is the random variable representing the output $Y_x$ corresponding to input point $x$ conditional
+on the data $Y_X$.
+Thus $y(x) = Y_x | Y_X$, and $y(x)$ is a random variable with distribution
+
+$$ y(x) \sim N \left( \mu_x + \Sigma_{xX} \Sigma_x^{-1}(Y_X - \mu_X) , ~\Sigma_x + \Sigma_{xX} \Sigma_X^{-1} \Sigma_{Xx}\right)$$
+
 
 # Gradient of mean function
 
 The mean function is 
-$$ \hat{y}(x) = \hat{\mu} + r^T R^{-1}(Y - 1\hat{\mu}). $$
-$r$ is the only part that depends on $x$, and is defined below, where $K$ is the correlation function.
+$$ \hat{y}(x) = \mu(x) + \Sigma_{xX} \Sigma_X^{-1}(Y_X - \mu_X). $$
+$\mu(x)$ and $\Sigma_{xX}$ are the only parts that depends on $x$.
 
-$$ r = (r_1(x), \ldots, r_d(x))^T$$
-$$ r_i(x) = K(z(x), z(u_i))$$
-$$\frac{\partial \hat{y}(x)}{\partial x_i} = \frac{\partial r}{\partial x_i}^T R^{-1}(Y - 1\hat{\mu})$$
+We can find the gradient of $\hat{y}(x)$ by taking the partial derivatives
 
-$$\frac{\partial r_j}{\partial x_i} = \frac{\partial K(z(x), z(u_j))}{\partial x_i} $$
-This value depends on the correlation function $K$. This will give the vector $\frac{\partial r}{\partial x_i}$ which is calculates a single partial derivative, then the vector of these gives the gradient $\nabla_x \hat{y}(x)$ 
+$$\frac{\partial \hat{y}(x)}{\partial x_i}= \frac{\partial \mu(x)}{\partial x_i} +  \frac{\partial \Sigma_{x,X}}{\partial x_i} \Sigma_X^{-1}(Y_X - \mu_X)$$
+Remember that $\Sigma$ is overloaded and the second derivative on the right hand side is:
+$$\frac{\partial \Sigma_{x,X}}{\partial x_i} = \frac{\partial \Sigma (x,X)}{\partial x_i} $$
+The calculation above is for a single partial derivative. The vector of these gives the gradient $\frac{\partial \hat{y}(x)}{\partial x} = \nabla_x \hat{y}(x)$.
+Note that the partial derivative of a scalar with respect to a vector is another way of writing the gradient.
 
-
+We usually use $\mu(x)$ equal to zero, a constant, or a linear model,
+meaning that its derivative is usually zero or a constant.
 
 
 ## Hessian of mean function
 
 The second derivatives can be calculated similarly
-$$\frac{\partial^2 \hat{y}(x)}{\partial x_i \partial x_k} = \frac{\partial^2 r}{\partial x_i \partial x_k}^T R^{-1}(Y - 1\hat{\mu})$$
-
-Each element of this matrix is
-$$\frac{\partial^2 r_j}{\partial x_i \partial x_k} = \frac{\partial^2 K(z(x), z(u_j))}{\partial x_i \partial x_k} $$
+$$\frac{\partial^2 \hat{y}(x)}{\partial x_i \partial x_k} = \frac{\partial^2 \mu(x)}{\partial x_i \partial x_k} +\frac{\partial^2 \Sigma_{xX}}{\partial x_i \partial x_k} \Sigma_X^{-1}(Y_X - \mu_X)$$
+For the typical choices of $\mu$ its second order derivatives are zero,
+meaning that we usually only have the second term to worry about.
 
 ## Gaussian correlation derivative
 
-The equations above work for any correlation function, but then we need to have the derivatives of the correlation function with respect to the spatial variables.
+The equations above work for any covariance function, but then we need to have
+the derivatives of the covariance function with respect to the spatial variables.
+Here we calculate these derivatives for the Gaussian, or squared exponential,
+correlation function $R$.
 
-$$K(z(x), z(u_j)) = \exp(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{j\ell})^2) $$
+$$R(x, u) = \exp \left(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{\ell})^2 \right) $$
 
-$$\frac{\partial K(z(x), z(u_j))}{\partial x_i}  = -2\theta_i (x_i - u_{ji}) \exp(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{j\ell})^2)  $$
+$$\frac{\partial R(x, u)}{\partial x_i}  = -2\theta_i (x_i - u_{i}) \exp \left(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{\ell})^2 \right)  $$
 The second derivative with respect to the same dimension is
 
-$$\frac{\partial^2 K(z(x), z(u_j))}{\partial x_i^2}  = (-2\theta_i  + 4\theta_i^2 (x_i - u_{ji})^2) \exp(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{j\ell})^2)  $$
+$$
+\begin{align}
+  \frac{\partial^2 R(x, u)}{\partial x_i^2}  &= \left(-2\theta_i  + 4\theta_i^2 (x_i - u_{i})^2 \right) \exp \left(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{\ell})^2 \right) \\
+  &= \left(-2\theta_i  + 4\theta_i^2 (x_i - u_{i})^2 \right) R(x, u)
+\end{align}
+$$
 
-The cross derivative is 
-$$\frac{\partial^2 K(z(x), z(u_j))}{\partial x_i \partial x_k}  = 4\theta_i \theta_k (x_i - u_{ji}) (x_k - u_{jk}) \exp(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{j\ell})^2)  $$
+The cross derivative for $i \neq k$ is
+$$
+\begin{align}
+  \frac{\partial^2 R(x, u)}{\partial x_i \partial x_k}  &= 4\theta_i \theta_k (x_i - u_{i}) (x_k - u_{k}) \exp \left(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{\ell})^2 \right)  \\
+  &= 4\theta_i \theta_k (x_i - u_{i}) (x_k - u_{k}) R(x, u)
+\end{align}
+$$
+
+The second derivative with respect to each component, which is needed for the gradient distribution below,
+is the following for the same dimension $i$:
+
+$$
+\begin{align}
+  \frac{\partial^2 R(x, u)}{\partial x_i \partial u_i}  &= \left(2\theta_i  - 4\theta_i^2 (x_i - u_{i})^2 \right) \exp \left(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{\ell})^2 \right) \\
+  &= \left(2\theta_i  - 4\theta_i^2 (x_i - u_{i})^2 \right) R(x, u)
+\end{align}
+$$
+
+
+And the following for $i \neq k$:
+
+$$
+\begin{align}
+  \frac{\partial^2 R(x, u)}{\partial x_i \partial u_k}  &= -4\theta_i \theta_k (x_i - u_{i}) (x_k - u_{k}) \exp \left(-\sum_{\ell =1}^d \theta_\ell (x_\ell - u_{\ell})^2 \right)  \\
+  &= -4\theta_i \theta_k (x_i - u_{i}) (x_k - u_{k}) R(x, u)
+\end{align}
+$$
+
 
 ## Gradient distribution
 
-A big problem with using the gradient of the mean function of a GP is that it doesn't give an idea of its distribution/randomness. The gradient could be zero in a region where the surface is not flat just because we don't any information in that region yet.
+A big problem with using the gradient of the mean function of a GP is that it doesn't give an idea of its distribution/randomness. The mean of the gradient could be predicted to be zero in a region where the surface is not flat simply because it has no information in that region yet.
 
-Can we find the distribution of the gradient by taking a limit?
+First we want to know what type of distribution the gradient follows.
+Since the derivative is a linear operator, and a linear operator applied
+to a normal r.v. is also normal, the gradient must be a multivariate
+random variable.
+For a more intuitive explanation, consider a $\delta$ approximation to the
+gradient.
 
-In $d$ dimensions we 
+$$ \frac{\partial y(x)}{\partial x} = \lim_{\delta \rightarrow 0} \frac{1}{\delta} \left( \begin{bmatrix} y(x+\delta e_1) \\ \vdots \\ y(x+\delta e_d) \end{bmatrix} - \begin{bmatrix} y(x) \\ \vdots \\ y(x) \end{bmatrix} \right)$$
 
-First start with the directional derivative in the direction of the ith component.
-$$ \frac{\partial \hat{y}(x)}{\partial x_i} = \lim_{\delta -> 0} \frac{ \hat{y}(x + \delta e_i) - \hat{y}(x)}{\delta}  $$
+For any finite $\delta$, this vector's components are a linear combination of normal random variables, and thus the vector has a multivariate distribution.
+We still need to show that in the limit as $\delta \rightarrow 0$, it retains a multivariate distribution, but I won't do that here.
 
-Now we find the joint distribution of $\hat{y}(x + \delta e_i) $ and $ \hat{y}(x)$
+Thus the gradient follows a multivariate distribution, and now we will find its mean and covariance.
 
-### Joint distribution
+### Gradient expected value
 
-If $(y,z) \sim N((\mu_1, \mu_2), \Sigma)$
-then $$ z|y \sim N(\mu_{z|y}, \Sigma_{z|y} )$$
-$$ \mu_{z|y}= \mu_2 + \Sigma_{zy}\Sigma_{yy}^{-1} (y - \mu_1)$$
-$$ \Sigma_{z|y} = \Sigma_{zz} - \Sigma_{zy}\Sigma_{yy}^{-1}\Sigma_{yz} $$
+The expected value of the gradient is easily found since it equals the gradient of the expected value.
+This is true because both gradients and expected value and linear operators and thus can be exchanged.
 
-### Linear combination of normal variables is normal
+$$ E \left[\frac{\partial y(x)}{\partial x} \right] =  \frac{\partial E[y(x)]}{\partial x}  \\
+   = \frac{\partial \Sigma(x,X)}{\partial x_i} \Sigma_X^{-1}(Y_X - \mu_X)
+$$
 
-$$ E[\hat{y}(x + \delta e_i) - \hat{y}(x)] = (\Sigma_{z_1y} - \Sigma_{z_2y})\Sigma_{yy}^{-1} (y - \mu_1) = (r_1-r_2)R^{-1}(y-\mu_1)$$
+### Variance of the gradient
 
-$$ E[\frac{\hat{y}(x + \delta e_i) - \hat{y}(x)}{\delta}] = (\frac{\Sigma_{z_1y} - \Sigma_{z_2y}}{\delta})\Sigma_{yy}^{-1} (y - \mu_1) =  (\frac{r_1 - r_2}{\delta})R^{-1} (y - \mu_1)$$
-
-
-$$ \frac{\Sigma_{z_1y} - \Sigma_{z_2y}}{\delta} = \frac{\hat{\sigma}^2 (r_1 - r_2)}{\delta}$$
-The jth element of this is
-$$ \lim_{\delta -> 0} \frac{R(x+\delta e_i, X_j) - R(x, X_j)}{\delta}  = \frac{\partial R(x, X_j)}{\partial x_i} =  \frac{\partial r_{(j)}}{\partial x_i}$$
-The mean of the gradient distribution is 
-$$ \frac{\partial r}{\partial x_i}^TR^{-1} (y - \mu_1)$$
-This is the same as the derivative of the mean function.
-
-The variance is the more difficult part.
-
-### Variance of lincom
-
-$$ Var\big[ \frac{\hat{y}(x + \delta e_i) - \hat{y}(x)}{\delta} \big] = \frac{1}{\delta^2}Var\big[ \hat{y}(x + \delta e_i) - \hat{y}(x) \big]$$
-$$=\frac{1}{\delta^2}\big( Var\big[ \hat{y}(x + \delta e_i)  \big] + Var\big[ \hat{y}(x) \big] + -2 Cov\big[ \hat{y}(x + \delta e_i), \hat{y}(x) \big] \big)$$
-$$ Var\big[ \hat{y}(x + \delta e_i) |Y \big] = \Sigma_{11} - \Sigma_{1Y} \Sigma_{YY}^{-1} \Sigma_{Y1}  $$
-$$ Var\big[ \hat{y}(x) |Y \big] = \Sigma_{22} - \Sigma_{2Y} \Sigma_{YY}^{-1} \Sigma_{Y2}  $$
-$$ Cov\big[ \hat{y}(x + \delta e_i), \hat{y}(x)|Y \big] =  Cov\big[ \hat{y}(x + \delta e_i), \hat{y}(x) \big] - Cov\big[ \hat{y}(x + \delta e_i), Y \big] \Sigma_{YY}^{-1} Cov\big[ Y, \hat{y}(x) \big] $$
-$$ = \Sigma_{12} - \Sigma_{1Y} \Sigma_{YY}^{-1} \Sigma_{Y2}$$
-$$  = \hat{\sigma}^2 \big(R\big[ \hat{y}(x + \delta e_i), \hat{y}(x) \big] + r_1 R^{-1} r_2 \big) $$
-
-$$=\frac{1}{\delta^2}\big( \Sigma_{11} - \Sigma_{1Y} \Sigma_{YY}^{-1} \Sigma_{Y1} + \Sigma_{22} - \Sigma_{2Y} \Sigma_{YY}^{-1} \Sigma_{Y2} + -2 (\Sigma_{12} - \Sigma_{1Y} \Sigma_{YY}^{-1} \Sigma_{Y2}) $$
-$$=\frac{1}{\delta^2}\big( \Sigma_{11}  + \Sigma_{22}  -2 \Sigma_{12} +2 (\Sigma_{1Y}- \Sigma_{2Y}) \Sigma_{YY}^{-1} ( \Sigma_{1Y}-\Sigma_{Y2}) $$
+The variance is harder to calculate.
+I used [this reference](http://mlg.eng.cam.ac.uk/mchutchon/DifferentiatingGPs.pdf) [@mchutchon] to get started,
+but the derivation presented here is much simpler.
 
 
-CONTINUE HERE
-USE THIS AS GUIDE http://mlg.eng.cam.ac.uk/mchutchon/DifferentiatingGPs.pdf
+<!-- #### Starting over here -->
+
+<!-- Let $U$ and $X$ be design matrices, so their rows are input points. Let the vector of outputs at $U$ be $Y_U$ and at $X$ be $Y_X$. -->
+<!-- Their joint distribution is  -->
+<!-- $$ \begin{bmatrix} Y_U \\ Y_X \end{bmatrix} -->
+<!-- \sim -->
+<!-- N(\begin{bmatrix} \mu_{U} \\ \mu_X \end{bmatrix}, -->
+<!-- \begin{bmatrix} -->
+<!--     \Sigma_{U}       & \Sigma_{UX} \\ -->
+<!--     \Sigma_{XU}       & \Sigma_{X} \\ -->
+<!-- \end{bmatrix}  -->
+<!-- ) -->
+<!-- $$ -->
+
+<!-- The joint distribution of $Y_U$ given $Y_X$ is -->
+<!-- $$ Y_U | Y_X \sim -->
+<!-- N(\mu_U + \Sigma_{UX} \Sigma_{X}^{-1}(Y_X-\mu_X),\Sigma_{U} - \Sigma_{UX} \Sigma_{X}^{-1} \Sigma_{XU}) -->
+<!-- $$ -->
+
+<!-- To find the distribution of the gradient, we -->
+
+<!-- Let $U$ have 2 rows, with vectors denoted as $a$ and $b$. -->
+
+<!-- Then  -->
+
+<!-- $$ -->
+<!-- \text{Cov}(Y_U) = \Sigma_U \\ -->
+<!-- = \begin{bmatrix} -->
+<!--     \Sigma_{a}       & \Sigma_{ba} \\ -->
+<!--     \Sigma_{ba}       & \Sigma_{b} \\ -->
+<!-- \end{bmatrix}  -->
+<!-- $$ -->
+
+
+We need to find the covariance of the gradient vector of $y$ at a point $x$.
+$$ \text{Cov}(\nabla_x y(x))$$
+The $(i,j)$ entry of this matrix is
+$$ \text{Cov}(\frac{\partial y(x)}{\partial x_i},\frac{\partial y(x)}{\partial x_j})$$
+We can write this as a limit.
+
+$$ \lim_{\delta \rightarrow 0} \text{Cov}\left(\frac{y(x+\delta e_i) - y(x)}{\delta}, \frac{y(x+\delta e_j) - y(x)}{\delta}\right)$$
+The covariance function is bilinear, so we can split it into four terms.
+
+$$
+\begin{align}
+  \lim_{\delta \rightarrow 0} \frac{1}{\delta^2} \left(   \text{Cov}\left[y(x+\delta e_i), y(x+\delta e_j)\right] - \text{Cov}\left[y(x+\delta e_i), y(x)\right] \\
+  - \text{Cov}\left[y(x), y(x+\delta e_j)\right] + \text{Cov}\left[y(x), y(x)\right] \right)
+\end{align}
+$$
+
+This can be recognized as the second order derivative of $\text{Cov}(y(u), y(v))$ with respect to $u_i$ and $v_j$ evaluated at $u=v=x$. See finite difference differentiation for more details. We have to use $u$ and $v$ instead of a single $x$ to be clear which component of the covariance function is being differentiated.
+
+Thus we have the following. It looks obvious, so I'm not sure I even needed the previous step.
+$$ \text{Cov}(\frac{\partial y(x)}{\partial x_i},\frac{\partial y(x)}{\partial x_j}) = \frac{\partial \text{Cov}(y(u), y(v))}{\partial u \partial v} |_{u=x, v=x}$$
+Let $U$ be the matrix with rows $u$ and $v$.
+Recall that
+$$ \text{Cov}\left( \begin{bmatrix} y(u) \\ y(v) \end{bmatrix} \right) = \Sigma_{U} - \Sigma_{UX} \Sigma_{X}^{-1} \Sigma_{XU}$$
+The $(1,2)$ element of this is the covariance we are looking for.
+$$ \text{Cov}(y(u), y(v)) = \Sigma_{u,v} - \Sigma_{u,X} \Sigma_X^{-1} \Sigma_{X,v}$$
+Now we need to differentiate this with respect to $u_i$ and $v_j$.
+
+$$ \text{Cov} \left( \frac{\partial y(x)}{\partial x_i},\frac{\partial y(x)}{\partial x_j} \right) =   \frac{\partial^2 \Sigma_{u,v}}{\partial u_i \partial v_j} - \frac{\partial \Sigma_{u,X}}{\partial u_i} \Sigma_X^{-1} \frac{\partial \Sigma_{X,v}}{\partial v_j} |_{u=x,v=x}$$
+Therefore we have found the distribution of the gradient.
+
+$$
+\frac{\partial y(x)}{\partial x} | Y_X 
+\sim 
+N(\frac{\partial \Sigma(x,X)}{\partial x}^T \Sigma_X^{-1} (Y_X - \mu_X),
+\frac{\partial^2 \Sigma(x_1, x_2)}{\partial x_1 \partial x_2}  + 
+\frac{\partial \Sigma(x_1, X)}{\partial x_1} \Sigma_x^{-1} \frac{\partial \Sigma(X, x_2)}{\partial x_2} |_{x_1=x,x_2=x})
+$$
 
 
 
 
+### Distribution of the gradient norm squared
+
+Let 
+$$g(x) = \frac{\partial y(x)}{\partial x} | Y_X $$
+$$g(x) = \nabla_x y(x) | Y_X $$
+This is a vector. We are often interested in the gradient norm, or its square, $g(x)^T g(x) = ||g(x)||^2$.
+This is the sum of correlated squared normal variables, i.e. the sum of correlated chi-squared variables.
+Since $g(x)$ has a multivariate normal distribution,
+the square of its norm is probably distributed according to some kind of chi-squared distribution.
+We can first try to find its expectation using.
 
 
+### Mean of gradient norm squared
 
-$$=\frac{1}{\delta^2}\big( Var\big[ \hat{y}(x + \delta e_i)  \big] + Var\big[ \hat{y}(x) \big] + -2 Cov\big[ \hat{y}(x + \delta e_i), \hat{y}(x) \big] \big)$$
+$||g(x)||^2$
 
-I could have just used this formula:
-$$ Var[(1,-1)^T (z_1, z_2)] = (1,-1)^T Cov((z_1, z_2)) (1,-1)$$
+$$ E \left[ ||g(x)||^2 \right] = E \left[ \sum_{i=1}^d g_i(x)^2 \right] = \sum_{i=1}^d E \left[g_i(x)^2 \right]$$
 
-$$ \frac{\partial R(z_1, z_2)}{\partial \delta} = $$
+$$ E \left[ g_i(x)^2 \right] = \text{Var} \left[g_i(x) \right] + E \left[g_i(x) \right]^2$$
+We just found these variances and expectations, so this is a closed form equation.
+
+### Full distribution of gradient norm squared
+
+
+In this section we will derive the full distribution of $||g(x)||^2$ following the fantastic answer from [this Math Stack Exchange answer](https://math.stackexchange.com/questions/442472/sum-of-squares-of-dependent-gaussian-random-variables) [@halvorsen], all credit for this section goes there.
+
+The general idea is that if we could decorrelate the chi-squared variables, then it would be a sum of chi-squared variables, which is a known distribution that is easy to work with.
+
+#### General derivation
+
+Let $X$ be a random vector with multivariate distribution with mean $\mu$ and covariance matrix $\Sigma$.
+$$ X \sim N(\mu, \Sigma)$$
+Let $Q(X)$ be a quadratic form of $X$ defined by the matrix $A$.
+$$Q(X) = X^TAX$$
+Let $Y = \Sigma^{-1/2}X$. $Y$ is a decorrelated version of $X$, so $Y \sim N(\Sigma^{-1/2} \mu, I)$. 
+
+Let $Z = Y - \Sigma^{-1/2}\mu$. $Z$ is a version of $Y$ with mean zero, so $Z \sim N(0, I)$. 
+
+Now we have 
+
+$$Q(X) = X^TAX = (Z + \Sigma^{-1/2} \mu)^T \Sigma^{1/2} A \Sigma^{1/2} (Z + \Sigma^{-1/2} \mu)$$
+
+The spectral theorem allows the middle term to be decomposed as below, where P is the orthogonal matrix of eigenvectors and $\Lambda$ is the diagonal matrix with positive diagonal elements $\lambda_1, \ldots, \lambda_n$.
+
+$$\Sigma^{1/2} A \Sigma^{1/2} = P^T \Lambda P $$
+Let $U=PZ$. Since $P$ is orthogonal and using the distribution of $Z$, we also have that $U \sim N(0, I)$.
+
+Putting these together, we can change $Q(X)$ as follows.
+
+$$ Q(X) = X^TAX = (Z + \Sigma^{-1/2} \mu)^T \Sigma^{1/2} A \Sigma^{1/2} (Z + \Sigma^{-1/2} \mu) \\
+ = (Z + \Sigma^{-1/2} \mu)^T P^T \Lambda P (Z + \Sigma^{-1/2} \mu) \\
+ = (PZ + P\Sigma^{-1/2} \mu)^T \Lambda (PZ + P\Sigma^{-1/2} \mu) \\
+ = (U + b)^T \Lambda (U + b) \\
+$$
+Here we defined $b= P \Sigma^{-1/2} \mu$.
+
+Since $\Lambda$ is diagonal, we have
+$$Q(X) = X^TAX = \sum_{j=1}^n \lambda_j (U_j + b_j)^2$$
+
+The $U_j$ have standard normal distribution and are independent of each other. $(U_j + b_j)^2$ is thus the square of normal variable with mean $b_j$ and variance 1, meaning it has a noncentral chi-squared distribution with mean $b_j^2 +1$ and variance $4b_j^2 + 2$.
+Thus $Q(X)$ is distributed as a linear combination of $n$ noncentral chi-squared variables. Since $\lambda_j$ is different for each, $Q(X)$ does not have a noncentral chi-squared distribution. However, we can easily find its mean, variance, sample from it, etc.
+
+The mean and variance of $Q(X)$ are 
+$$ 
+\begin{align}
+  E[Q(X)] &= \sum_{j=1}^n \lambda_j E[(U_j + b_j)^2] \\
+          &= \sum_{j=1}^n \lambda_j (b_j^2 + 1) \\
+\end{align}
+$$
+
+$$
+\begin{align}
+  \text{Var}[Q(X)] &= \sum_{j=1}^n \lambda_j^2 \text{Var} \left[ (U_j + b_j)^2 \right] \\
+                   &= \sum_{j=1}^n \lambda_j^2 (4b_j^2 + 2) \\
+\end{align}
+$$
+
+### Relating this back to $||g||^2$
+
+For $||g||^2$ we had $A=I$, $\mu=\frac{\partial \Sigma_{x,X}}{\partial x}^T \Sigma_X^{-1} (Y_X - \mu_X)$, and $\Sigma=\frac{\partial^2 \Sigma(x_1, x_2)}{\partial x_1 \partial x_2}  + \frac{\partial \Sigma(x_1, X)}{\partial x_1} \Sigma_x^{-1} \frac{\partial \Sigma(X, x_2)}{\partial x_2}$
+
+Thus we need $P$ and $\Lambda$ from the eigendecomposition $\Sigma = P^T \Lambda P$. $\Lambda$ will give the $\lambda_j$. 
+
+Then we need $b = P \Sigma^{-1/2} \mu$. We can calculate $\Sigma^{-1/2}$ as the square root of the matrix $\Sigma^{-1}$ using the eigendecomposition again. We can decompose $\Sigma^{-1} = W^TDW$ (using different symbols from before to avoid confusion), where $D$ is diagonal and W is orthogonal. Then $\Sigma^{-1/2} = W^T S W$, where $S$ is the diagonal matrix whose elements are the square roots of the elements of $D$. This can easily be proven as follows.
+$$ \Sigma^{-1/2} \Sigma^{-1/2} = W^T S W W^T S W = W^T S S W = W^T D W = \Sigma^{-1}$$
+
+Now that we know how to calculate $\lambda$ and $U$, we can calculate the distribution of $||g||^2$.
+
+
+# References

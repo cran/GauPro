@@ -4,21 +4,386 @@
 \name{RatQuad}
 \alias{RatQuad}
 \title{Rational Quadratic Kernel R6 class}
-\format{\code{\link{R6Class}} object.}
-\usage{
-RatQuad
+\format{
+\code{\link{R6Class}} object.
 }
 \value{
 Object of \code{\link{R6Class}} with methods for fitting GP model.
 }
 \description{
 Rational Quadratic Kernel R6 class
+
+Rational Quadratic Kernel R6 class
 }
 \examples{
 k1 <- RatQuad$new(beta=0, alpha=0)
 }
-\keyword{Gaussian}
-\keyword{data,}
-\keyword{kriging,}
-\keyword{process,}
-\keyword{regression}
+\section{Super classes}{
+\code{\link[GauPro:GauPro_kernel]{GauPro::GauPro_kernel}} -> \code{\link[GauPro:GauPro_kernel_beta]{GauPro::GauPro_kernel_beta}} -> \code{GauPro_kernel_RatQuad}
+}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{alpha}}{alpha value (the exponent). Between 0 and 2.}
+
+\item{\code{logalpha}}{Log of alpha}
+
+\item{\code{logalpha_lower}}{Lower bound for log of alpha}
+
+\item{\code{logalpha_upper}}{Upper bound for log of alpha}
+
+\item{\code{alpha_est}}{Should alpha be estimated?}
+}
+\if{html}{\out{</div>}}
+}
+\section{Methods}{
+\subsection{Public methods}{
+\itemize{
+\item \href{#method-new}{\code{RatQuad$new()}}
+\item \href{#method-k}{\code{RatQuad$k()}}
+\item \href{#method-kone}{\code{RatQuad$kone()}}
+\item \href{#method-dC_dparams}{\code{RatQuad$dC_dparams()}}
+\item \href{#method-dC_dx}{\code{RatQuad$dC_dx()}}
+\item \href{#method-param_optim_start}{\code{RatQuad$param_optim_start()}}
+\item \href{#method-param_optim_start0}{\code{RatQuad$param_optim_start0()}}
+\item \href{#method-param_optim_lower}{\code{RatQuad$param_optim_lower()}}
+\item \href{#method-param_optim_upper}{\code{RatQuad$param_optim_upper()}}
+\item \href{#method-set_params_from_optim}{\code{RatQuad$set_params_from_optim()}}
+\item \href{#method-clone}{\code{RatQuad$clone()}}
+}
+}
+\if{html}{
+\out{<details open ><summary>Inherited methods</summary>}
+\itemize{
+\item \out{<span class="pkg-link" data-pkg="GauPro" data-topic="GauPro_kernel_beta" data-id="C_dC_dparams">}\href{../../GauPro/html/GauPro_kernel_beta.html#method-C_dC_dparams}{\code{GauPro::GauPro_kernel_beta$C_dC_dparams()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="GauPro" data-topic="GauPro_kernel_beta" data-id="s2_from_params">}\href{../../GauPro/html/GauPro_kernel_beta.html#method-s2_from_params}{\code{GauPro::GauPro_kernel_beta$s2_from_params()}}\out{</span>}
+}
+\out{</details>}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-new"></a>}}
+\if{latex}{\out{\hypertarget{method-new}{}}}
+\subsection{Method \code{new()}}{
+Initialize kernel object
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$new(
+  beta,
+  alpha = 1,
+  s2 = 1,
+  D,
+  beta_lower = -8,
+  beta_upper = 6,
+  beta_est = TRUE,
+  alpha_lower = 0,
+  alpha_upper = Inf,
+  alpha_est = TRUE,
+  s2_lower = 1e-08,
+  s2_upper = 1e+08,
+  s2_est = TRUE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{beta}}{Initial beta value}
+
+\item{\code{alpha}}{Initial alpha value}
+
+\item{\code{s2}}{Initial variance}
+
+\item{\code{D}}{Number of input dimensions of data}
+
+\item{\code{beta_lower}}{Lower bound for beta}
+
+\item{\code{beta_upper}}{Upper bound for beta}
+
+\item{\code{beta_est}}{Should beta be estimated?}
+
+\item{\code{alpha_lower}}{Lower bound for alpha}
+
+\item{\code{alpha_upper}}{Upper bound for alpha}
+
+\item{\code{alpha_est}}{Should alpha be estimated?}
+
+\item{\code{s2_lower}}{Lower bound for s2}
+
+\item{\code{s2_upper}}{Upper bound for s2}
+
+\item{\code{s2_est}}{Should s2 be estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-k"></a>}}
+\if{latex}{\out{\hypertarget{method-k}{}}}
+\subsection{Method \code{k()}}{
+Calculate covariance between two points
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$k(
+  x,
+  y = NULL,
+  beta = self$beta,
+  logalpha = self$logalpha,
+  s2 = self$s2,
+  params = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{vector.}
+
+\item{\code{y}}{vector, optional. If excluded, find correlation
+of x with itself.}
+
+\item{\code{beta}}{Correlation parameters.}
+
+\item{\code{logalpha}}{A correlation parameter}
+
+\item{\code{s2}}{Variance parameter.}
+
+\item{\code{params}}{parameters to use instead of beta and s2.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-kone"></a>}}
+\if{latex}{\out{\hypertarget{method-kone}{}}}
+\subsection{Method \code{kone()}}{
+Find covariance of two points
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$kone(x, y, beta, theta, alpha, s2)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{vector}
+
+\item{\code{y}}{vector}
+
+\item{\code{beta}}{correlation parameters on log scale}
+
+\item{\code{theta}}{correlation parameters on regular scale}
+
+\item{\code{alpha}}{A correlation parameter}
+
+\item{\code{s2}}{Variance parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-dC_dparams"></a>}}
+\if{latex}{\out{\hypertarget{method-dC_dparams}{}}}
+\subsection{Method \code{dC_dparams()}}{
+Derivative of covariance with respect to parameters
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$dC_dparams(params = NULL, X, C_nonug, C, nug)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{params}}{Kernel parameters}
+
+\item{\code{X}}{matrix of points in rows}
+
+\item{\code{C_nonug}}{Covariance without nugget added to diagonal}
+
+\item{\code{C}}{Covariance with nugget}
+
+\item{\code{nug}}{Value of nugget}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-dC_dx"></a>}}
+\if{latex}{\out{\hypertarget{method-dC_dx}{}}}
+\subsection{Method \code{dC_dx()}}{
+Derivative of covariance with respect to X
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$dC_dx(XX, X, theta, beta = self$beta, alpha = self$alpha, s2 = self$s2)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{XX}}{matrix of points}
+
+\item{\code{X}}{matrix of points to take derivative with respect to}
+
+\item{\code{theta}}{Correlation parameters}
+
+\item{\code{beta}}{log of theta}
+
+\item{\code{alpha}}{parameter}
+
+\item{\code{s2}}{Variance parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_start"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_start}{}}}
+\subsection{Method \code{param_optim_start()}}{
+Starting point for parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$param_optim_start(
+  jitter = F,
+  y,
+  beta_est = self$beta_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{jitter}}{Should there be a jitter?}
+
+\item{\code{y}}{Output}
+
+\item{\code{beta_est}}{Is beta being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_start0"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_start0}{}}}
+\subsection{Method \code{param_optim_start0()}}{
+Starting point for parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$param_optim_start0(
+  jitter = F,
+  y,
+  beta_est = self$beta_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{jitter}}{Should there be a jitter?}
+
+\item{\code{y}}{Output}
+
+\item{\code{beta_est}}{Is beta being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_lower"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_lower}{}}}
+\subsection{Method \code{param_optim_lower()}}{
+Lower bounds of parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$param_optim_lower(
+  beta_est = self$beta_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{beta_est}}{Is beta being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_upper"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_upper}{}}}
+\subsection{Method \code{param_optim_upper()}}{
+Upper bounds of parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$param_optim_upper(
+  beta_est = self$beta_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{beta_est}}{Is beta being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-set_params_from_optim"></a>}}
+\if{latex}{\out{\hypertarget{method-set_params_from_optim}{}}}
+\subsection{Method \code{set_params_from_optim()}}{
+Set parameters from optimization output
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$set_params_from_optim(
+  optim_out,
+  beta_est = self$beta_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{optim_out}}{Output from optimization}
+
+\item{\code{beta_est}}{Is beta being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{RatQuad$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
+}
+}
+}

@@ -4,21 +4,450 @@
 \name{Periodic}
 \alias{Periodic}
 \title{Periodic Kernel R6 class}
-\format{\code{\link{R6Class}} object.}
-\usage{
-Periodic
+\format{
+\code{\link{R6Class}} object.
 }
 \value{
 Object of \code{\link{R6Class}} with methods for fitting GP model.
 }
 \description{
 Periodic Kernel R6 class
+
+Periodic Kernel R6 class
+}
+\details{
+p is the period for each dimension, a is a single number for scaling
 }
 \examples{
 k1 <- Periodic$new(p=1, alpha=1)
 }
-\keyword{Gaussian}
-\keyword{data,}
-\keyword{kriging,}
-\keyword{process,}
-\keyword{regression}
+\section{Super class}{
+\code{\link[GauPro:GauPro_kernel]{GauPro::GauPro_kernel}} -> \code{GauPro_kernel_Periodic}
+}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{p}}{Parameter for correlation}
+
+\item{\code{p_est}}{Should p be estimated?}
+
+\item{\code{logp}}{Log of p}
+
+\item{\code{logp_lower}}{Lower bound of logp}
+
+\item{\code{logp_upper}}{Upper bound of logp}
+
+\item{\code{p_length}}{length of p}
+
+\item{\code{alpha}}{Parameter for correlation}
+
+\item{\code{alpha_est}}{Should alpha be estimated?}
+
+\item{\code{logalpha}}{Log of alpha}
+
+\item{\code{logalpha_lower}}{Lower bound of logalpha}
+
+\item{\code{logalpha_upper}}{Upper bound of logalpha}
+
+\item{\code{s2}}{variance}
+
+\item{\code{s2_est}}{Is s2 estimated?}
+
+\item{\code{logs2}}{Log of s2}
+
+\item{\code{logs2_lower}}{Lower bound of logs2}
+
+\item{\code{logs2_upper}}{Upper bound of logs2}
+}
+\if{html}{\out{</div>}}
+}
+\section{Methods}{
+\subsection{Public methods}{
+\itemize{
+\item \href{#method-new}{\code{Periodic$new()}}
+\item \href{#method-k}{\code{Periodic$k()}}
+\item \href{#method-kone}{\code{Periodic$kone()}}
+\item \href{#method-dC_dparams}{\code{Periodic$dC_dparams()}}
+\item \href{#method-C_dC_dparams}{\code{Periodic$C_dC_dparams()}}
+\item \href{#method-dC_dx}{\code{Periodic$dC_dx()}}
+\item \href{#method-param_optim_start}{\code{Periodic$param_optim_start()}}
+\item \href{#method-param_optim_start0}{\code{Periodic$param_optim_start0()}}
+\item \href{#method-param_optim_lower}{\code{Periodic$param_optim_lower()}}
+\item \href{#method-param_optim_upper}{\code{Periodic$param_optim_upper()}}
+\item \href{#method-set_params_from_optim}{\code{Periodic$set_params_from_optim()}}
+\item \href{#method-s2_from_params}{\code{Periodic$s2_from_params()}}
+\item \href{#method-clone}{\code{Periodic$clone()}}
+}
+}
+\if{html}{
+\out{<details open ><summary>Inherited methods</summary>}
+\itemize{
+}
+\out{</details>}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-new"></a>}}
+\if{latex}{\out{\hypertarget{method-new}{}}}
+\subsection{Method \code{new()}}{
+Initialize kernel object
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$new(
+  p,
+  alpha = 1,
+  s2 = 1,
+  D,
+  p_lower = 0,
+  p_upper = 100,
+  p_est = TRUE,
+  alpha_lower = 0,
+  alpha_upper = 100,
+  alpha_est = TRUE,
+  s2_lower = 1e-08,
+  s2_upper = 1e+08,
+  s2_est = TRUE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{p}}{Periodic parameter}
+
+\item{\code{alpha}}{Periodic parameter}
+
+\item{\code{s2}}{Initial variance}
+
+\item{\code{D}}{Number of input dimensions of data}
+
+\item{\code{p_lower}}{Lower bound for p}
+
+\item{\code{p_upper}}{Upper bound for p}
+
+\item{\code{p_est}}{Should p be estimated?}
+
+\item{\code{alpha_lower}}{Lower bound for alpha}
+
+\item{\code{alpha_upper}}{Upper bound for alpha}
+
+\item{\code{alpha_est}}{Should alpha be estimated?}
+
+\item{\code{s2_lower}}{Lower bound for s2}
+
+\item{\code{s2_upper}}{Upper bound for s2}
+
+\item{\code{s2_est}}{Should s2 be estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-k"></a>}}
+\if{latex}{\out{\hypertarget{method-k}{}}}
+\subsection{Method \code{k()}}{
+Calculate covariance between two points
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$k(
+  x,
+  y = NULL,
+  logp = self$logp,
+  logalpha = self$logalpha,
+  s2 = self$s2,
+  params = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{vector.}
+
+\item{\code{y}}{vector, optional. If excluded, find correlation
+of x with itself.}
+
+\item{\code{logp}}{Correlation parameters.}
+
+\item{\code{logalpha}}{Correlation parameters.}
+
+\item{\code{s2}}{Variance parameter.}
+
+\item{\code{params}}{parameters to use instead of beta and s2.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-kone"></a>}}
+\if{latex}{\out{\hypertarget{method-kone}{}}}
+\subsection{Method \code{kone()}}{
+Find covariance of two points
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$kone(x, y, logp, p, alpha, s2)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{vector}
+
+\item{\code{y}}{vector}
+
+\item{\code{logp}}{correlation parameters on log scale}
+
+\item{\code{p}}{correlation parameters on regular scale}
+
+\item{\code{alpha}}{correlation parameter}
+
+\item{\code{s2}}{Variance parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-dC_dparams"></a>}}
+\if{latex}{\out{\hypertarget{method-dC_dparams}{}}}
+\subsection{Method \code{dC_dparams()}}{
+Derivative of covariance with respect to parameters
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$dC_dparams(params = NULL, X, C_nonug, C, nug)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{params}}{Kernel parameters}
+
+\item{\code{X}}{matrix of points in rows}
+
+\item{\code{C_nonug}}{Covariance without nugget added to diagonal}
+
+\item{\code{C}}{Covariance with nugget}
+
+\item{\code{nug}}{Value of nugget}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-C_dC_dparams"></a>}}
+\if{latex}{\out{\hypertarget{method-C_dC_dparams}{}}}
+\subsection{Method \code{C_dC_dparams()}}{
+Calculate covariance matrix and its derivative
+ with respect to parameters
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$C_dC_dparams(params = NULL, X, nug)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{params}}{Kernel parameters}
+
+\item{\code{X}}{matrix of points in rows}
+
+\item{\code{nug}}{Value of nugget}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-dC_dx"></a>}}
+\if{latex}{\out{\hypertarget{method-dC_dx}{}}}
+\subsection{Method \code{dC_dx()}}{
+Derivative of covariance with respect to X
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$dC_dx(XX, X, logp = self$logp, logalpha = self$logalpha, s2 = self$s2)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{XX}}{matrix of points}
+
+\item{\code{X}}{matrix of points to take derivative with respect to}
+
+\item{\code{logp}}{log of p}
+
+\item{\code{logalpha}}{log of alpha}
+
+\item{\code{s2}}{Variance parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_start"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_start}{}}}
+\subsection{Method \code{param_optim_start()}}{
+Starting point for parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$param_optim_start(
+  jitter = F,
+  y,
+  p_est = self$p_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{jitter}}{Should there be a jitter?}
+
+\item{\code{y}}{Output}
+
+\item{\code{p_est}}{Is p being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_start0"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_start0}{}}}
+\subsection{Method \code{param_optim_start0()}}{
+Starting point for parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$param_optim_start0(
+  jitter = F,
+  y,
+  p_est = self$p_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{jitter}}{Should there be a jitter?}
+
+\item{\code{y}}{Output}
+
+\item{\code{p_est}}{Is p being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_lower"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_lower}{}}}
+\subsection{Method \code{param_optim_lower()}}{
+Lower bounds of parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$param_optim_lower(
+  p_est = self$p_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{p_est}}{Is p being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-param_optim_upper"></a>}}
+\if{latex}{\out{\hypertarget{method-param_optim_upper}{}}}
+\subsection{Method \code{param_optim_upper()}}{
+Upper bounds of parameters for optimization
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$param_optim_upper(
+  p_est = self$p_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{p_est}}{Is p being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-set_params_from_optim"></a>}}
+\if{latex}{\out{\hypertarget{method-set_params_from_optim}{}}}
+\subsection{Method \code{set_params_from_optim()}}{
+Set parameters from optimization output
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$set_params_from_optim(
+  optim_out,
+  p_est = self$p_est,
+  alpha_est = self$alpha_est,
+  s2_est = self$s2_est
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{optim_out}}{Output from optimization}
+
+\item{\code{p_est}}{Is p being estimated?}
+
+\item{\code{alpha_est}}{Is alpha being estimated?}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-s2_from_params"></a>}}
+\if{latex}{\out{\hypertarget{method-s2_from_params}{}}}
+\subsection{Method \code{s2_from_params()}}{
+Get s2 from params vector
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$s2_from_params(params, s2_est = self$s2_est)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{params}}{parameter vector}
+
+\item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-clone}{}}}
+\subsection{Method \code{clone()}}{
+The objects of this class are cloneable with this method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Periodic$clone(deep = FALSE)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{deep}}{Whether to make a deep clone.}
+}
+\if{html}{\out{</div>}}
+}
+}
+}

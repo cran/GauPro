@@ -25,14 +25,14 @@
 #' @useDynLib GauPro
 #' @importFrom Rcpp evalCpp
 #' @importFrom stats optim
-#' @keywords data, kriging, Gaussian process, regression
+# @keywords data, kriging, Gaussian process, regression
 #' @return Object of \code{\link{R6Class}} with methods for fitting GP model.
 #' @format \code{\link{R6Class}} object.
 #' @examples
 #' n <- 12
 #' x <- matrix(seq(0,1,length.out = n), ncol=1)
 #' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
-#' gp <- GauPro(X=x, Z=y, parallel=FALSE)
+#' gp <- GauPro_Gauss$new(X=x, Z=y, parallel=FALSE)
 GauPro_Gauss <- R6::R6Class(classname = "GauPro_Gauss",
      inherit = GauPro_base,
      public = list(
@@ -391,7 +391,7 @@ GauPro_Gauss <- R6::R6Class(classname = "GauPro_Gauss",
 
 
        print = function() {
-         cat("GauPro object of GauPr_Gauss\n")
+         cat("GauPro object of GauPro_Gauss\n")
          cat(paste0("\tD = ", self$D, ", N = ", self$N,"\n"))
          cat(paste0(c("\tTheta = ", signif(self$theta, 3), "\n")))
          cat(paste0("\tNugget = ", signif(self$nug, 3), "\n"))

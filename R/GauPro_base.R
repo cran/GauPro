@@ -6,14 +6,14 @@
 #' @useDynLib GauPro
 #' @importFrom Rcpp evalCpp
 #' @importFrom stats optim
-#' @keywords data, kriging, Gaussian process, regression
+# @keywords data, kriging, Gaussian process, regression
 #' @return Object of \code{\link{R6Class}} with methods for fitting GP model.
 #' @format \code{\link{R6Class}} object.
 #' @examples
-#' n <- 12
-#' x <- matrix(seq(0,1,length.out = n), ncol=1)
-#' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
-#' gp <- GauPro(X=x, Z=y, parallel=FALSE)
+#' #n <- 12
+#' #x <- matrix(seq(0,1,length.out = n), ncol=1)
+#' #y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#' #gp <- GauPro(X=x, Z=y, parallel=FALSE)
 #' @field X Design matrix
 #' @field Z Responses
 #' @field N Number of data points
@@ -29,7 +29,6 @@
 #' @field parallel_cores How many cores are there? It will self detect, do not set yourself.
 #' @section Methods:
 #' \describe{
-#'   \item{Documentation}{For full documentation of each method go to https://github.com/lightning-viz/lightining-r/}
 #'   \item{\code{new(X, Z, corr="Gauss", verbose=0, separable=T, useC=F,useGrad=T,
 #'          parallel=T, nug.est=T, ...)}}{This method is used to create object of this class with \code{X} and \code{Z} as the data.}
 #'
@@ -199,6 +198,33 @@ GauPro_base <- R6::R6Class(classname = "GauPro",
         pred_var = function(XX, kxx, kx.xx, covmat=F) { # 2-4x faster to use C functions pred_var and pred_cov
           self$s2_hat * diag(kxx - t(kx.xx) %*% self$Kinv %*% kx.xx)
         },
+        pred_LOO = function(se.fit=FALSE) {#browser()
+          # Predict LOO (leave-one-out) on data used to fit model
+          # See vignette for explanation of equations
+          # If se.fit==T, then calculate the LOO se and the corresponding t score
+          Z_LOO <- numeric(self$N)
+          if (se.fit) {Z_LOO_se <- numeric(self$N)}
+          Z_trend <- self$mu_hat #self$trend$Z(self$X)
+          for (i in 1:self$N) {
+            E <- self$Kinv[-i, -i] # Kinv without i
+            b <- self$K[    i, -i] # K    between i and rest
+            g <- self$Kinv[ i, -i] # Kinv between i and rest
+            Ainv <- E + E %*% b %*% g / (1-sum(g*b)) # Kinv for K if i wasn't in K
+            Zi_LOO <- Z_trend + c(b %*% Ainv %*% (self$Z[-i] - Z_trend))
+            Z_LOO[i] <- Zi_LOO
+            if (se.fit) { # Need to use s2_hat
+              Zi_LOO_se <- sqrt(self$K[i,i] - c(b %*% Ainv %*% b))
+              Z_LOO_se[i] <- Zi_LOO_se
+            }
+          }
+          if (se.fit) { # Return df with se and t if se.fit
+            Z_LOO_se <- Z_LOO_se * sqrt(self$s2_hat)
+            t_LOO <- (self$Z - Z_LOO) / Z_LOO_se
+            data.frame(fit=Z_LOO, se.fit=Z_LOO_se, t=t_LOO)
+          } else { # Else just mean LOO
+            Z_LOO
+          }
+        },
         cool1Dplot = function (n2=20, nn=201, col2="gray",
                                xlab='x', ylab='y',
                                xmin=NULL, xmax=NULL,
@@ -262,6 +288,68 @@ GauPro_base <- R6::R6Class(classname = "GauPro",
           }
           points(x,px$me, type='l', lwd=4)
           points(self$X, self$Z, pch=19, col=1, cex=2)
+        },
+        plot1D = function(n2=20, nn=201, col2=2, #"gray",
+                          xlab='x', ylab='y',
+                          xmin=NULL, xmax=NULL,
+                          ymin=NULL, ymax=NULL) {
+          if (self$D != 1) stop('Must be 1D')
+          # Letting user pass in minx and maxx
+          if (is.null(xmin)) {
+            minx <- min(self$X)
+          } else {
+            minx <- xmin
+          }
+          if (is.null(xmax)) {
+            maxx <- max(self$X)
+          } else {
+            maxx <- xmax
+          }
+          # minx <- min(self$X)
+          # maxx <- max(self$X)
+          x1 <- minx - .1 * (maxx - minx)
+          x2 <- maxx + .1 * (maxx - minx)
+          # nn <- 201
+          x <- seq(x1, x2, length.out = nn)
+          px <- self$pred(x, se=T)
+          # n2 <- 20
+
+          # Setting ylim, giving user option
+          if (is.null(ymin)) {
+            miny <- min(px$mean - 2*px$se)
+          } else {
+            miny <- ymin
+          }
+          if (is.null(ymax)) {
+            maxy <- max(px$mean + 2*px$se)
+          } else {
+            maxy <- ymax
+          }
+
+          plot(x, px$mean+2*px$se, type='l', col=col2, lwd=2,
+               # ylim=c(min(newy),max(newy)),
+               ylim=c(miny,maxy),
+               xlab=xlab, ylab=ylab)
+          points(x, px$mean-2*px$se, type='l', col=col2, lwd=2)
+          points(x,px$me, type='l', lwd=4)
+          points(self$X,
+                 # if (self$normalize) {self$Z * self$normalize_sd + self$normalize_mean}
+                 # else {self$Z},
+                 self$Z,
+                 pch=19, col=1, cex=2)
+        },
+        plot2D = function() {
+          if (self$D != 2) {stop("plot2D only works in 2D")}
+          mins <- apply(self$X, 2, min)
+          maxs <- apply(self$X, 2, max)
+          xmin <- mins[1] - .03 * (maxs[1] - mins[1])
+          xmax <- maxs[1] + .03 * (maxs[1] - mins[1])
+          ymin <- mins[2] - .03 * (maxs[2] - mins[2])
+          ymax <- maxs[2] + .03 * (maxs[2] - mins[2])
+          ContourFunctions::cf_func(self$predict, batchmax=Inf,
+                                    xlim=c(xmin, xmax),
+                                    ylim=c(ymin, ymax),
+                                    pts=self$X)
         },
         loglikelihood = function(mu=self$mu_hat, s2=self$s2_hat) {
           -.5 * (self$N*log(s2) + log(det(self$K)) + t(self$Z - mu)%*%self$Kinv%*%(self$Z - mu)/s2)
