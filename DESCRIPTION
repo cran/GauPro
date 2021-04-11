@@ -1,7 +1,7 @@
 Package: GauPro
 Type: Package
 Title: Gaussian Process Fitting
-Version: 0.2.3
+Version: 0.2.4
 Author: Collin Erickson
 Maintainer: Collin Erickson <collinberickson@gmail.com>
 Description: Fits a Gaussian process model to data. Gaussian processes
@@ -20,6 +20,6 @@ URL: https://github.com/CollinErickson/GauPro
 BugReports: https://github.com/CollinErickson/GauPro/issues
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2021-03-28 14:16:39 UTC; collin
+Packaged: 2021-04-07 01:57:04 UTC; collin
 Repository: CRAN
-Date/Publication: 2021-03-28 15:30:03 UTC
+Date/Publication: 2021-04-11 15:20:13 UTC

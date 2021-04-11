@@ -12,7 +12,7 @@
 
 <meta name="author" content="Collin Erickson" />
 
-<meta name="date" content="2021-03-28" />
+<meta name="date" content="2021-04-06" />
 
 <title>Leave-one-out cross-validation and error correction</title>
 
@@ -140,7 +140,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 <h1 class="title toc-ignore">Leave-one-out cross-validation and error correction</h1>
 <h4 class="author">Collin Erickson</h4>
-<h4 class="date">2021-03-28</h4>
+<h4 class="date">2021-04-06</h4>
 
 
 
@@ -157,9 +157,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  microbenchmark<span class="sc">::</span><span class="fu">microbenchmark</span>(<span class="fu">solve</span>(m1, b1), m1 <span class="sc">%*%</span> b1)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 <pre><code>## Unit: microseconds
-##           expr      min        lq       mean   median        uq      max neval
-##  solve(m1, b1) 2077.068 2218.3425 2369.59001 2268.880 2361.5940 3931.030   100
-##      m1 %*% b1   37.464   38.0925   42.65187   39.426   43.7175   77.331   100
+##           expr      min       lq       mean   median       uq      max neval
+##  solve(m1, b1) 2170.372 2184.184 2304.73951 2211.632 2286.168 8277.518   100
+##      m1 %*% b1   37.667   38.164   48.88542   39.753   42.956  722.822   100
 ##  cld
 ##    b
 ##   a</code></pre>
@@ -200,11 +200,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 <pre><code>## Unit: microseconds
 ##                                expr      min        lq      mean    median
-##                            solve(A) 6130.109 6341.8280 6774.9374 6558.4660
-##  E + E %*% b %*% g/(1 - sum(g * b))  272.023  291.9595  355.2452  309.7325
-##        uq       max neval cld
-##  6757.621 12354.480   100   b
-##   365.359  2372.091   100  a</code></pre>
+##                            solve(A) 5958.883 6156.8425 6334.9344 6255.1155
+##  E + E %*% b %*% g/(1 - sum(g * b))  273.644  281.7155  338.3906  302.5305
+##         uq      max neval cld
+##  6429.0730 8683.355   100   b
+##   347.6985 2408.890   100  a</code></pre>
 <p>In terms of the covariance matrices already calculated, this is the following, where <span class="math inline">\(M_{-i}\)</span> is the matrix <span class="math inline">\(M\)</span> with the ith row and column removed, and <span class="math inline">\(M_{i,-i}\)</span> is the ith row of the matrix <span class="math inline">\(M\)</span> with the value from the ith column removed.</p>
 <p><span class="math display">\[ R(X_{-i})^{-1} = R(X)_{-i} -
 \frac{(R(X)_{-i}R(X)_{-i,i}) (R(X)^{-1})_{i,-i}^T }{1 + (R(X)^{-1})_{i,-i}^T R(X)_{-i,i}}\]</span></p>

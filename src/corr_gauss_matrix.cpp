@@ -55,10 +55,18 @@ using namespace Rcpp;
 // [[Rcpp::export]]
 NumericMatrix corr_gauss_matrixC(NumericMatrix x, NumericMatrix y, NumericVector theta) {
   int nrow = x.nrow(), ncol = y.nrow();
+  // int ndim = x.ncol();
   NumericMatrix out(nrow, ncol);
   for (int i = 0; i < nrow; i++) {
     for (int j = 0; j < ncol; j++) {
-      out(i, j) = exp(-sum(theta * pow(x.row(i) - y.row(j), 2.0)));;
+      // Vectorized way with sugar, should work
+      out(i, j) = std::exp(-sum(theta * Rcpp::pow(x.row(i) - y.row(j), 2.0)));
+      // // As a for loop.
+      // out(i, j) = 0;
+      // for (int k=0; k < ndim; k++) {
+      //   out(i,j) -= theta[k] * std::pow(x(i, k) - y(j, k), 2);
+      // }
+      // out(i, j) = std::exp(out(i, j));
     }
   }
   return out;
@@ -106,9 +114,9 @@ NumericMatrix corr_gauss_matrix_symC(NumericMatrix x, NumericVector theta) {
 
       double total = 0;
       for(int k = 0; k < nsum; ++k) {
-        total += theta[k] * pow((x(i,k) - x(j,k)), 2);
+        total += theta[k] * std::pow((x(i,k) - x(j,k)), 2);
       }
-      total = exp(-total);
+      total = std::exp(-total);
 
       out(i, j) = total;
       out(j, i) = total; // since symmetric
@@ -132,9 +140,9 @@ NumericVector corr_gauss_matrixvecC(NumericMatrix x, NumericVector y, NumericVec
   for (int i = 0; i < nrow; i++) {
     double total = 0;
     for(int k = 0; k < nsum; ++k) {
-      total += theta[k] * pow((x(i,k) - y(k)), 2);
+      total += theta[k] * std::pow((x(i,k) - y(k)), 2);
     }
-    total = exp(-total);
+    total = std::exp(-total);
 
     out(i) = total;
   }
@@ -153,7 +161,7 @@ NumericVector corr_gauss_matrixvecC(NumericMatrix x, NumericVector y, NumericVec
 //' corr_gauss_matrix_sym_armaC(matrix(c(1,0,0,1),2,2),c(1,1))
 //'
 //' x3 <- matrix(runif(1e3*6), ncol=6)
-//' th <- c(.3,3.3)
+//' th <- runif(6)
 //' t3 <- corr_gauss_matrix_symC(x3, th)
 //' t4 <- corr_gauss_matrix_sym_armaC(x3, th)
 //' identical(t3, t4)
@@ -171,9 +179,9 @@ arma::mat corr_gauss_matrix_sym_armaC(arma::mat x, arma::vec theta) {
 
       double total = 0;
       for(int k = 0; k < nsum; ++k) {
-        total += theta[k] * pow((x(i,k) - x(j,k)), 2);
+        total += theta[k] * std::pow((x(i,k) - x(j,k)), 2);
       }
-      total = exp(-total);
+      total = std::exp(-total);
 
       out(i, j) = total;
       out(j, i) = total;
@@ -199,7 +207,7 @@ arma::mat corr_gauss_matrix_sym_armaC(arma::mat x, arma::vec theta) {
 //'
 //' x1 <- matrix(runif(100*6), nrow=100, ncol=6)
 //' x2 <- matrix(runif(1e4*6), ncol=6)
-//' th <- c(.3,3.3)
+//' th <- runif(6)
 //' t1 <- corr_gauss_matrixC(x1, x2, th)
 //' t2 <- corr_gauss_matrix_armaC(x1, x2, th)
 //' identical(t1, t2)
@@ -215,11 +223,11 @@ arma::mat corr_gauss_matrix_armaC(arma::mat x, arma::mat y, arma::vec theta, dou
   for(int k = 0; k < nsum; ++k) {
     for (int i = 0; i < nrowx; i++) {
       for (int j = 0; j < nrowy; j++) {
-        out(i,j) += theta[k] * pow((x(i,k) - y(j,k)), 2);
+        out(i,j) += theta[k] * std::pow((x(i,k) - y(j,k)), 2);
       }
     }
   }
-  out = exp(-out);
+  out = arma::exp(-out);
   if (s2 != 1.0) {
     out *= s2;
   }
@@ -267,21 +275,21 @@ arma::cube kernel_gauss_dC(arma::mat x, arma::vec theta, arma::mat C_nonug, bool
   }*/
 
   if (s2_est) {
-    // dC_dparams(lenparams_D,,) = C * log(10);
+    // dC_dparams(lenparams_D,,) = C * log(10.0);
     for (int i = 0; i < nrow - 1; i++) {
       for (int j = i + 1; j < nrow; j++) {
-        dC_dparams(lenparams_D - 1,i,j) = C_nonug(i,j) * log(10);
+        dC_dparams(lenparams_D - 1,i,j) = C_nonug(i,j) * log(10.0);
         dC_dparams(lenparams_D - 1,j,i) = dC_dparams(lenparams_D - 1,i,j);
       }
-      dC_dparams(lenparams_D - 1, i, i) = (C_nonug(i,i) + s2_nug) * log(10);
+      dC_dparams(lenparams_D - 1, i, i) = (C_nonug(i,i) + s2_nug) * log(10.0);
     }
-    dC_dparams(lenparams_D - 1, nrow - 1, nrow - 1) = (C_nonug(nrow - 1, nrow - 1) + s2_nug) * log(10);
+    dC_dparams(lenparams_D - 1, nrow - 1, nrow - 1) = (C_nonug(nrow - 1, nrow - 1) + s2_nug) * log(10.0);
   }
   if (beta_est) {
     for (int k = 0; k < nsum; k++) {
       for (int i = 0; i < nrow - 1; i++) {
         for (int j = i + 1; j < nrow; j++) {
-          dC_dparams(k,i,j) = - C_nonug(i,j) * pow(x(i,k) - x(j,k), 2) * theta(k) * log(10);
+          dC_dparams(k,i,j) = - C_nonug(i,j) * std::pow(x(i,k) - x(j,k), 2) * theta(k) * log(10.0);
           dC_dparams(k,j,i) = dC_dparams(k,i,j);
         }
       }
