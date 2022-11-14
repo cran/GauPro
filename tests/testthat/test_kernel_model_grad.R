@@ -1,10 +1,7 @@
 # Test to check that grad returns right length and
 # agrees with numerical grad.
-test_that("kernel grad works", {
-
-
-
-
+test_that("kernel grad works", { # kernel grad works----
+  # Kernels to test on
   kernels <- list(Gaussian$new(c(0,.3)),
                   Exponential$new(c(0,.3)),
                   Matern32$new(c(0,.3)),
@@ -19,13 +16,17 @@ test_that("kernel grad works", {
   y <- apply(x, 1, f) #sin(2*pi*x) #+ rnorm(n,0,1e-1)
   x1 <- c(.34343, .65)
   x2 <- matrix(c(.2352,.4745,.34625,.97654,.16435,.457, .354, .976,.234, .623), ncol=2)
-  for (kernel in kernels) {
+  for (i in 1:length(kernels)) {
+    kernel <- kernels[[i]]
+    # cat("Checking grad", i, class(kernel), '\n')
     set.seed(0)
 
     # Fit GP using kernel
     #' kernel=Gaussian$new(c(0.1,.2))
-    gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=kernel, parallel=FALSE, verbose=10, nug.est=T, restarts=0)
+    gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=kernel, parallel=FALSE,
+                                  verbose=0, nug.est=T, restarts=0)
 
+    expect_equal(length(gp$pred(x1)), 1)
     grad1 <- gp$grad(x1)
     expect_is(object = grad1, class = 'matrix')
     expect_length(object = grad1, n = 2)
@@ -37,17 +38,31 @@ test_that("kernel grad works", {
     # Check grad with numerical grad
     if (requireNamespace("numDeriv", quietly = TRUE)) {
       expect_equal(c(gp$grad(x1)), c(numDeriv::grad(gp$predict, x1)), tol=.1)
+    } else {
+      # Check grad numerically
+      eps <- 1e-6
+      for (j in 1:ncol(x)) {
+      x1plus <- x1
+      x1plus[j] <- x1plus[j] + eps/2
+      x1minus <- x1
+      x1minus[j] <- x1minus[j] - eps/2
+      numgrad <- (gp$pred(x1plus) - gp$pred(x1minus)) / eps
+      expect_equal(numgrad, grad1[j])
+      }
     }
   }
 })
 
+# grad_norm2 for Gaussian ----
 test_that("grad_norm2 for Gaussian", { # only implemented for Gaussian now
   set.seed(0)
   n <- 20
   x <- matrix(seq(0,1,length.out = n), ncol=1)
   f <- Vectorize(function(x) {sin(2*pi*x) + .5*sin(4*pi*x) +rnorm(1,0,.3)}+10*x)
   y <- 123 + f(x) #sin(2*pi*x) #+ rnorm(n,0,1e-1)
-  gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(beta=0.152, s2=10^1.7194, beta_est=F, s2_est=F), restarts=0, no_update=T, parallel=FALSE, verbose=10, nug.est=F, param.est=F, nug=0.00357)
+  gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(beta=0.152, s2=10^1.7194, beta_est=F, s2_est=F),
+                                restarts=0, no_update=T,
+                                parallel=FALSE, verbose=0, nug.est=F, param.est=F, nug=0.00357)
   expect_equal(unlist(gp$grad_norm2_dist(matrix(.1,ncol=1))), c(mean=324.1904, var=3781.708), tol=1)
   set.seed(1)
   ts <- gp$grad_norm2_sample(matrix(.1,ncol=1), n=1e4)
@@ -65,7 +80,8 @@ test_that("grad_norm2 for Gaussian", { # only implemented for Gaussian now
   x <- matrix(runif(2*n), ncol=2)
   f <- function(x) {sin(2*pi*x[1]) + .5*sin(4*pi*x[1]) +rnorm(1,0,.03) + x[2]^2}
   y <- apply(x, 1, f) #f(x) #sin(2*pi*x) #+ rnorm(n,0,1e-1)
-  gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(beta=c(.966, -.64),s2=10^.4848), parallel=FALSE, verbose=10, nug.est=F, nug=0.0001721, param.est=F)
+  gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(beta=c(.966, -.64),s2=10^.4848),
+                                parallel=FALSE, verbose=0, nug.est=F, nug=0.0001721, param.est=F)
   # Check grad_norm2_dist is correct
   tx <- matrix(c(.1,.2),ncol=2)
   expect_equal(unlist(gp$grad_norm2_dist(tx)), c(mean=45.46676, var=31.37130), tol=.0001)
@@ -88,3 +104,4 @@ test_that("grad_norm2 for Gaussian", { # only implemented for Gaussian now
   expect_equal(dim(gd[[2]]), c(1,2,2))
 
 })
+

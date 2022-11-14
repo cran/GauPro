@@ -30,11 +30,24 @@
 #' @format \code{\link{R6Class}} object.
 #' @examples
 #' k1 <- Gaussian$new(beta=0)
+#' plot(k1)
+#' k1 <- Gaussian$new(beta=c(0,-1, 1))
+#' plot(k1)
+#'
+#'
+#' n <- 12
+#' x <- matrix(seq(0,1,length.out = n), ncol=1)
+#' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(1),
+#'                               parallel=FALSE)
+#' gp$predict(.454)
+#' gp$plot1D()
+#' gp$cool1Dplot()
 Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
   inherit = GauPro_kernel_beta,
   public = list(
     # initialize = function(beta, s2=1, beta_lower=-8, beta_upper=6,
-    #                       s2_lower=1e-8, s2_upper=1e8) {browser()
+    #                       s2_lower=1e-8, s2_upper=1e8) {
     #   self$beta <- beta
     #   self$beta_length <- length(beta)
     #   # if (length(theta) == 1) {
@@ -69,7 +82,7 @@ Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
           logs2 <- self$logs2
         }
         s2 <- 10 ^ logs2
-      } else {#browser()
+      } else {
         if (is.null(beta)) {beta <- self$beta}
         if (is.null(s2)) {s2 <- self$s2}
       }
@@ -102,6 +115,16 @@ Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
       } else {
         s2 * exp(-sum(theta * (x-y)^2))
       }
+    },
+    #' @description Find covariance of two points
+    #' @param x vector
+    #' @param y vector
+    #' @param beta correlation parameters on log scale
+    #' @param theta correlation parameters on regular scale
+    #' @param s2 Variance parameter
+    kone = function(x, y, beta, theta, s2) {
+      if (missing(theta)) {theta <- 10^beta}
+      s2 * exp(-sum(theta * (x-y)^2))
     },
     #' @description Derivative of covariance with respect to parameters
     #' @param params Kernel parameters
@@ -145,8 +168,8 @@ Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
       lenparams_D <- self$beta_length*self$beta_est + self$s2_est
 
       # I wrote Rcpparmadillo function to speed this up a lot hopefully
-      useR <- FALSE
-      if (useR) {
+      # useR <- FALSE
+      if (!self$useC) { # useR
         dC_dparams <- array(dim=c(lenparams_D, n, n), data=0)
         if (self$s2_est) {
           dC_dparams[lenparams_D,,] <- C * log10 #/ s2 * s2 *
@@ -213,8 +236,8 @@ Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
       lenparams_D <- self$beta_length*self$beta_est + self$s2_est
 
       # I wrote Rcpparmadillo function to speed this up a lot hopefully
-      useR <- FALSE
-      if (useR) {
+      # useR <- FALSE
+      if (!self$useC) { # useR
         dC_dparams <- array(dim=c(lenparams_D, n, n), data=0)
         if (self$s2_est) {
           dC_dparams[lenparams_D,,] <- C * log10 #/ s2 * s2 *
@@ -242,9 +265,9 @@ Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
       # kernel_gauss_dC(X, theta, C_nonug, self$s2_est,
       #                  self$beta_est, lenparams_D, s2*nug)
       # mats <- c(dC_dbetas, list(dC_dlogs2))
-      return(list(C = C, dC_dparams))
+      return(list(C = C, dC_dparams = dC_dparams))
     },
-    # dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {#browser()
+    # dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {
     #   if (missing(theta)) {theta <- 10^beta}
     #   if (!is.matrix(XX)) {stop("XX must be matrix")}
     #   d <- ncol(XX)
@@ -372,6 +395,13 @@ Gaussian <- R6::R6Class(classname = "GauPro_kernel_Gaussian",
         d2C_dx2[, j, j] <- 2 * theta[j] * s2
       }
       d2C_dx2
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Gaussian\n')
+      cat('\tD    =', self$D, '\n')
+      cat('\tbeta =', signif(self$beta, 3), '\n')
+      cat('\ts2   =', self$s2, '\n')
     }
   )
 )

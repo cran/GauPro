@@ -48,6 +48,17 @@
 #' @field logs2_upper Upper bound of logs2
 #' @examples
 #' k1 <- Periodic$new(p=1, alpha=1)
+#' plot(k1)
+#'
+#' n <- 12
+#' x <- matrix(seq(0,1,length.out = n), ncol=1)
+#' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Periodic$new(D=1),
+#'                               parallel=FALSE)
+#' gp$predict(.454)
+#' gp$plot1D()
+#' gp$cool1Dplot()
+#' plot(gp$kernel)
 Periodic <- R6::R6Class(
   classname = "GauPro_kernel_Periodic",
   inherit = GauPro_kernel,
@@ -137,7 +148,8 @@ Periodic <- R6::R6Class(
     #' @param logalpha Correlation parameters.
     #' @param s2 Variance parameter.
     #' @param params parameters to use instead of beta and s2.
-    k = function(x, y=NULL, logp=self$logp, logalpha=self$logalpha, s2=self$s2, params=NULL) {#browser()
+    k = function(x, y=NULL, logp=self$logp, logalpha=self$logalpha, s2=self$s2,
+                 params=NULL) {
       if (!is.null(params)) {
         lenparams <- length(params)
         # logp <- params[1:(lenpar-2)]
@@ -164,7 +176,7 @@ Periodic <- R6::R6Class(
 
 
         s2 <- 10^logs2
-      } else {#browser()
+      } else {
         if (is.null(logp)) {logp <- self$logp}
         if (is.null(logalpha)) {logalpha <- self$logalpha}
         if (is.null(s2)) {s2 <- self$s2}
@@ -172,7 +184,7 @@ Periodic <- R6::R6Class(
       p <- 10^logp
       alpha <- 10^logalpha
       if (is.null(y)) {
-        if (is.matrix(x)) {#browser()
+        if (is.matrix(x)) {
           val <- outer(1:nrow(x), 1:nrow(x),
                        Vectorize(function(i,j){
                          self$kone(x[i,],x[j,],p=p, alpha=alpha, s2=s2)
@@ -203,7 +215,7 @@ Periodic <- R6::R6Class(
     kone = function(x, y, logp, p, alpha, s2) {
       if (missing(p)) {p <- 10^logp}
       out <- s2 * exp(-sum(alpha*sin(p * (x-y))^2))
-      if (any(is.nan(out))) {browser()}
+      if (any(is.nan(out))) {stop(paste0("Error in Periodic kernel #2362398"))}
       out
     },
     #' @description Derivative of covariance with respect to parameters
@@ -263,7 +275,7 @@ Periodic <- R6::R6Class(
         for (k in 1:length(logp)) {
           for (i in seq(1, n-1, 1)) {
             for (j in seq(i+1, n, 1)) {
-              r2 <- sum(p * (X[i,]-X[j,])^2)
+              # r2 <- sum(p * (X[i,]-X[j,])^2)
               dC_dparams[k,i,j] <- -C_nonug[i,j] * alpha * sin(2*p[k]*(X[i,k] - X[j,k])) * (X[i,k] - X[j,k]) * p[k] * log10
               dC_dparams[k,j,i] <- dC_dparams[k,i,j]
             }
@@ -307,7 +319,7 @@ Periodic <- R6::R6Class(
     #' @param logp log of p
     #' @param logalpha log of alpha
     #' @param s2 Variance parameter
-    dC_dx = function(XX, X, logp=self$logp, logalpha=self$logalpha, s2=self$s2) {#browser()
+    dC_dx = function(XX, X, logp=self$logp, logalpha=self$logalpha, s2=self$s2) {
       # if (missing(theta)) {theta <- 10^beta}
       p <- 10 ^ logp
       alpha <- 10 ^ logalpha
@@ -422,6 +434,14 @@ Periodic <- R6::R6Class(
       } else { # Else it is just using set value, not being estimated
         self$s2
       }
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Periodic\n')
+      cat('\tD     =', self$D, '\n')
+      cat('\talpha =', signif(self$alpha, 3), '\n')
+      cat('\tp     =', signif(self$p, 3), '\n')
+      cat('\ts2    =', self$s2, '\n')
     }
   )
 )

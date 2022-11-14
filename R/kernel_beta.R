@@ -42,6 +42,7 @@
 #' @field logs2_lower Lower bound of logs2
 #' @field logs2_upper Upper bound of logs2
 #' @field s2_est Should s2 be estimated?
+#' @field useC Should C code used? Much faster.
 #' @examples
 #' #k1 <- Matern52$new(beta=0)
 GauPro_kernel_beta <- R6::R6Class(classname = "GauPro_kernel_beta",
@@ -57,6 +58,7 @@ GauPro_kernel_beta <- R6::R6Class(classname = "GauPro_kernel_beta",
     logs2_lower = NULL,
     logs2_upper = NULL,
     s2_est = NULL, # Should s2 be estimated?
+    useC = NULL,
     #' @description Initialize kernel object
     #' @param beta Initial beta value
     #' @param s2 Initial variance
@@ -67,9 +69,11 @@ GauPro_kernel_beta <- R6::R6Class(classname = "GauPro_kernel_beta",
     #' @param s2_lower Lower bound for s2
     #' @param s2_upper Upper bound for s2
     #' @param s2_est Should s2 be estimated?
+    #' @param useC Should C code used? Much faster.
     initialize = function(beta, s2=1, D,
                           beta_lower=-8, beta_upper=6, beta_est=TRUE,
-                          s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE
+                          s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE,
+                          useC=TRUE
                           ) {
       # Check beta and D
       missing_beta <- missing(beta)
@@ -99,6 +103,8 @@ GauPro_kernel_beta <- R6::R6Class(classname = "GauPro_kernel_beta",
       self$logs2_lower <- log(s2_lower, 10)
       self$logs2_upper <- log(s2_upper, 10)
       self$s2_est <- s2_est
+
+      self$useC <- useC
     },
     #' @description Calculate covariance between two points
     #' @param x vector.
@@ -107,19 +113,19 @@ GauPro_kernel_beta <- R6::R6Class(classname = "GauPro_kernel_beta",
     #' @param beta Correlation parameters. Log of theta.
     #' @param s2 Variance parameter.
     #' @param params parameters to use instead of beta and s2.
-    k = function(x, y=NULL, beta=self$beta, s2=self$s2, params=NULL) {#browser()
+    k = function(x, y=NULL, beta=self$beta, s2=self$s2, params=NULL) {
       if (!is.null(params)) {
         lenpar <- length(params)
         beta <- params[1:(lenpar-1)]
         logs2 <- params[lenpar]
         s2 <- 10^logs2
-      } else {#browser()
+      } else {
         if (is.null(beta)) {beta <- self$beta}
         if (is.null(s2)) {s2 <- self$s2}
       }
       theta <- 10^beta
       if (is.null(y)) {
-        if (is.matrix(x)) {#browser()
+        if (is.matrix(x)) {
           # cgmtry <- try(val <- s2 * corr_gauss_matrix_symC(x, theta))
           val <- outer(1:nrow(x), 1:nrow(x), Vectorize(function(i,j){self$kone(x[i,],x[j,],theta=theta, s2=s2)}))
           # if (inherits(cgmtry,"try-error")) {browser()}

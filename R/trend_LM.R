@@ -55,7 +55,8 @@ trend_LM <- R6::R6Class(
     #' @param b_lower trend lower bounds
     #' @param b_upper trend upper bounds
     #' @param b_est Should b be estimated?
-    initialize = function(D, m = rep(0,D), m_lower=rep(-Inf,D), m_upper=rep(Inf,D), m_est=rep(TRUE,D),
+    initialize = function(D, m = rep(0,D), m_lower=rep(-Inf,D),
+                          m_upper=rep(Inf,D), m_est=rep(TRUE,D),
                           b = 0, b_lower=-Inf, b_upper=Inf, b_est=TRUE) {
       self$D <- D
       self$m <- m
@@ -72,7 +73,7 @@ trend_LM <- R6::R6Class(
     #' @param m trend parameters
     #' @param b trend parameters (slopes)
     #' @param params trend parameters
-    Z = function(X, m=self$m, b=self$b, params=NULL) {#browser()
+    Z = function(X, m=self$m, b=self$b, params=NULL) {
       if (!is.null(params)) {m <- params[2:(self$D+1)]; b <- params[1]}
       if (is.matrix(X)) {
         b + X %*% m
@@ -104,26 +105,28 @@ trend_LM <- R6::R6Class(
     },
     #' @description Get parameter initial point for optimization
     #' @param jitter Not used
-    #' @param trend_est If the trend should be estimate.
-    param_optim_start = function(jitter, trend_est) {
-      c(self$b, self$m)
+    #' @param trend_est If the trend should be estimated.
+    param_optim_start = function(jitter=FALSE, trend_est) {
+      tr <- c(self$b, self$m)
+      if (jitter) {
+        tr <- tr + rnorm(length(tr), 0, 1)
+      }
+      tr
     },
     #' @description Get parameter initial point for optimization
     #' @param jitter Not used
-    #' @param trend_est If the trend should be estimate.
+    #' @param trend_est If the trend should be estimated.
     param_optim_start0 = function(jitter, trend_est) {
       c(self$b, self$m)
     },
     #' @description Get parameter lower bounds for optimization
-    #' @param jitter Not used
-    #' @param trend_est If the trend should be estimate.
-    param_optim_lower = function(jitter, trend_est) {
+    #' @param trend_est If the trend should be estimated.
+    param_optim_lower = function(trend_est) {
       c(self$b_lower, self$m_lower)
     },
     #' @description Get parameter upper bounds for optimization
-    #' @param jitter Not used
-    #' @param trend_est If the trend should be estimate.
-    param_optim_upper = function(jitter, trend_est) {
+    #' @param trend_est If the trend should be estimated.
+    param_optim_upper = function(trend_est) {
       c(self$b_upper, self$m_upper)
     },
     #' @description Set parameters after optimization

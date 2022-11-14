@@ -11,7 +11,8 @@
 #' @format \code{\link{R6Class}} object.
 #' @examples
 #' k1 <- Exponential$new(beta=0)
-Exponential <- R6::R6Class(classname = "GauPro_kernel_Exponential",
+Exponential <- R6::R6Class(
+  classname = "GauPro_kernel_Exponential",
   inherit = GauPro_kernel_beta,
   public = list(
     #' @description Calculate covariance between two points
@@ -117,29 +118,39 @@ Exponential <- R6::R6Class(classname = "GauPro_kernel_Exponential",
       }
 
       lenparams_D <- self$beta_length*self$beta_est + self$s2_est
-      dC_dparams <- array(dim=c(lenparams_D, n, n), data=0)
-      if (self$s2_est) {
-        dC_dparams[lenparams_D,,] <- C * log10 # Deriv for logs2
-      }
 
-      # Derivs for beta
-      if (self$beta_est) {
-        for (i in seq(1, n-1, 1)) {
-          for (j in seq(i+1, n, 1)) {
-            t1 <- -1 * C_nonug[i,j] * log10 * .5 / (-log(C[i,j]/s2))
+      if (self$useC) {
+        dC_dparams <- kernel_exponential_dC(X, theta, C_nonug, self$s2_est,
+                                            self$beta_est, lenparams_D,
+                                            s2*nug, s2)
+      } else {
+        dC_dparams <- array(dim=c(lenparams_D, n, n), data=0)
+        if (self$s2_est) {
+          dC_dparams[lenparams_D,,] <- C * log10 # Deriv for logs2
+        }
+
+        # Derivs for beta
+        if (self$beta_est) {
+          for (i in seq(1, n-1, 1)) {
+            for (j in seq(i+1, n, 1)) {
+              t1 <- -1 * C_nonug[i,j] * log10 * .5 / (-log(C[i,j]/s2))
+              for (k in 1:length(beta)) {
+                if (X[i,k] == X[j,k]) {
+                  dC_dparams[k,i,j] <- 0
+                } else {
+                  dC_dparams[k,i,j] <- t1 * (X[i,k] - X[j,k])^2 * theta[k]
+                }
+                dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+              }
+            }
+          }
+          for (i in seq(1, n, 1)) { # Get diagonal set to zero
             for (k in 1:length(beta)) {
-              dC_dparams[k,i,j] <- t1 * (X[i,k] - X[j,k])^2 * theta[k]
-              dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+              dC_dparams[k,i,i] <- 0
             }
           }
         }
-        for (i in seq(1, n, 1)) { # Get diagonal set to zero
-          for (k in 1:length(beta)) {
-            dC_dparams[k,i,i] <- 0
-          }
-        }
       }
-
       return(dC_dparams)
     },
     #' @description Derivative of covariance with respect to X
@@ -148,7 +159,7 @@ Exponential <- R6::R6Class(classname = "GauPro_kernel_Exponential",
     #' @param theta Correlation parameters
     #' @param beta log of theta
     #' @param s2 Variance parameter
-    dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {#browser()
+    dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {
       if (missing(theta)) {theta <- 10^beta}
       if (!is.matrix(XX)) {stop()}
       d <- ncol(XX)
@@ -165,6 +176,13 @@ Exponential <- R6::R6Class(classname = "GauPro_kernel_Exponential",
         }
       }
       dC_dx
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Exponential\n')
+      cat('\tD    =', self$D, '\n')
+      cat('\tbeta =', signif(self$beta, 3), '\n')
+      cat('\ts2   =', self$s2, '\n')
     }
   )
 )

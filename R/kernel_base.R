@@ -28,16 +28,44 @@
 #' @return Object of \code{\link{R6Class}} with methods for fitting GP model.
 #' @format \code{\link{R6Class}} object.
 #' @field D Number of input dimensions of data
+#' @field useC Should C code be used when possible? Can be much faster.
 #' @examples
 #' #k <- GauPro_kernel$new()
 GauPro_kernel <- R6::R6Class(classname = "GauPro_kernel",
   public = list(
-    D = NULL
+    D = NULL,
+    useC = TRUE
     # k_diag = function(x) {
     #   if (is.matrix(x)) {rep(self$s2, nrow(x))}
     #   else if (length(x) == self$D) {self$s2}
     #   else {stop("Error in k_diag #4928")}
     # }
+    ,
+    #' @description Plot kernel decay.
+    plot = function() {
+      stopifnot(!is.null(self$D), self$D >= 1)
+      n <- 51
+      xseq <- seq(0,1,l=n)
+      x0 <- rep(0, self$D)
+      df <- NULL
+      for (i in 1:self$D) {
+        X <- matrix(0, ncol=self$D, nrow=n)
+        X[, i] <- xseq
+        # xi <- rep(0, self$D)
+        # xi[i] <-
+        k <- self$k(x0, X)
+        df <- rbind(df,
+                    data.frame(i=i, x2=xseq, k=k)
+        )
+      }
+      ggplot2::ggplot(df, ggplot2::aes(x2, k)) + ggplot2::geom_line() +
+        ggplot2::facet_wrap(.~i)
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: (type unknown)\n')
+      cat('\tD =', self$D, '\n')
+    }
   ),
   private = list(
 

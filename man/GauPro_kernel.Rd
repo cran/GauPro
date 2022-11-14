@@ -22,18 +22,42 @@ Kernel R6 class
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
 \item{\code{D}}{Number of input dimensions of data}
+
+\item{\code{useC}}{Should C code be used when possible? Can be much faster.}
 }
 \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-clone}{\code{GauPro_kernel$clone()}}
+\item \href{#method-GauPro_kernel-plot}{\code{GauPro_kernel$plot()}}
+\item \href{#method-GauPro_kernel-print}{\code{GauPro_kernel$print()}}
+\item \href{#method-GauPro_kernel-clone}{\code{GauPro_kernel$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-clone}{}}}
+\if{html}{\out{<a id="method-GauPro_kernel-plot"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro_kernel-plot}{}}}
+\subsection{Method \code{plot()}}{
+Plot kernel decay.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel$plot()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro_kernel-print"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro_kernel-print}{}}}
+\subsection{Method \code{print()}}{
+Print this object
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel$print()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro_kernel-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro_kernel-clone}{}}}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{

@@ -1,6 +1,19 @@
+# GauPro 0.2.5
+
+Added kernels for factors.
+
+Changed default number of restarts to zero, and added checking more starting
+points. Should make it faster.
+
+Can give in data as data and formula instead of matrix and vector.
+
+Package was removed from CRAN on 10/3/22. This fixes the issue.
+
 # GauPro 0.2.4
 
 Very minor change in Rcpp code to remove CRAN error.
+
+Accepted to CRAN on 4/11/21.
 
 # GauPro 0.2.3
 

@@ -11,6 +11,16 @@
 #' @format \code{\link{R6Class}} object.
 #' @examples
 #' k1 <- Triangle$new(beta=0)
+#' plot(k1)
+#'
+#' n <- 12
+#' x <- matrix(seq(0,1,length.out = n), ncol=1)
+#' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Triangle$new(1),
+#'                               parallel=FALSE)
+#' gp$predict(.454)
+#' gp$plot1D()
+#' gp$cool1Dplot()
 Triangle <- R6::R6Class(
   classname = "GauPro_kernel_Triangle",
   inherit = GauPro_kernel_beta,
@@ -38,7 +48,7 @@ Triangle <- R6::R6Class(
         }
 
         s2 <- 10^logs2
-      } else {#browser()
+      } else {
         if (is.null(beta)) {beta <- self$beta}
         if (is.null(s2)) {s2 <- self$s2}
       }
@@ -126,20 +136,24 @@ Triangle <- R6::R6Class(
         for (i in seq(1, n-1, 1)) {
           for (j in seq(i+1, n, 1)) {
             r2 <- sum(theta * (X[i,]-X[j,])^2)
-            # t1 <- sqrt(3 * tx2)
-            # t3 <- C[i,j] * (1/(1+t1) - 1) * self$sqrt3 * log10
-            r <- sqrt(r2)
-            # browser()
-            C <- max(1 - r, 0)
-            for (k in 1:length(beta)) {
-              if (C > 0) {
-                dC_dparams[k,i,j] <- dC_dparams[k,j,i] <- -1/2/r * (X[i,k]-X[j,k])^2
-              } else {
-                dC_dparams[k,i,j] <- dC_dparams[k,j,i] <- 0
+            if (r2 == 0) {
+              dC_dparams[1:length(beta),i,j] <- dC_dparams[1:length(beta),j,i] <- 0
+            } else {
+              # t1 <- sqrt(3 * tx2)
+              # t3 <- C[i,j] * (1/(1+t1) - 1) * self$sqrt3 * log10
+              r <- sqrt(r2)
+              C <- max(1 - r, 0)
+              for (k in 1:length(beta)) {
+                if (C > 0) {
+                  # dC_dparams[k,i,j] <- dC_dparams[k,j,i] <- -1/2/r * (X[i,k]-X[j,k])^2
+                  dC_dparams[k,i,j] <- dC_dparams[k,j,i] <- -1/2/r * (X[i,k]-X[j,k])^2 * s2 * theta[k] * log10
+                } else {
+                  dC_dparams[k,i,j] <- dC_dparams[k,j,i] <- 0
+                }
+                # dt1dbk <- .5 * (X[i,k] - X[j,k])^2 / sqrttx2
+                # dC_dparams[k,i,j] <- t3 * dt1dbk * theta[k]   #s2 * (1+t1) * exp(-t1) *-dt1dbk + s2 * dt1dbk * exp(-t1)
+                # dC_dparams[k,j,i] <- dC_dparams[k,i,j]
               }
-              # dt1dbk <- .5 * (X[i,k] - X[j,k])^2 / sqrttx2
-              # dC_dparams[k,i,j] <- t3 * dt1dbk * theta[k]   #s2 * (1+t1) * exp(-t1) *-dt1dbk + s2 * dt1dbk * exp(-t1)
-              # dC_dparams[k,j,i] <- dC_dparams[k,i,j]
             }
           }
         }
@@ -176,6 +190,13 @@ Triangle <- R6::R6Class(
         }
       }
       dC_dx
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Triangle\n')
+      cat('\tD    =', self$D, '\n')
+      cat('\tbeta =', signif(self$beta, 3), '\n')
+      cat('\ts2   =', self$s2, '\n')
     }
   )
 )

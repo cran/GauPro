@@ -136,7 +136,7 @@ GauPro_base <- R6::R6Class(classname = "GauPro",
 
             ni <- 40 # batch size
             Nni <- ceiling(N/ni)-1
-            for (j in 0:Nni) {#browser()
+            for (j in 0:Nni) {
               XXj <- XX[(j*ni+1):(min((j+1)*ni,N)), , drop=FALSE]
               # kxxj <- self$corr_func(XXj)
               # kx.xxj <- self$corr_func(self$X, XXj)
@@ -198,7 +198,7 @@ GauPro_base <- R6::R6Class(classname = "GauPro",
         pred_var = function(XX, kxx, kx.xx, covmat=F) { # 2-4x faster to use C functions pred_var and pred_cov
           self$s2_hat * diag(kxx - t(kx.xx) %*% self$Kinv %*% kx.xx)
         },
-        pred_LOO = function(se.fit=FALSE) {#browser()
+        pred_LOO = function(se.fit=FALSE) {
           # Predict LOO (leave-one-out) on data used to fit model
           # See vignette for explanation of equations
           # If se.fit==T, then calculate the LOO se and the corresponding t score
@@ -223,6 +223,18 @@ GauPro_base <- R6::R6Class(classname = "GauPro",
             data.frame(fit=Z_LOO, se.fit=Z_LOO_se, t=t_LOO)
           } else { # Else just mean LOO
             Z_LOO
+          }
+        },
+        #' @description Plot the object
+        #' @param ... Parameters passed to cool1Dplot(), plot2D(), or plotmarginal()
+        plot = function(...) {
+          if (self$D == 1) {
+            self$cool1Dplot(...)
+          } else if (x$D == 2) {
+            self$plot2D(...)
+          } else {
+            stop("No plot method for higher than 2 dimension")
+            # self$plotmarginal(...)
           }
         },
         cool1Dplot = function (n2=20, nn=201, col2="gray",
@@ -477,7 +489,7 @@ GauPro_base <- R6::R6Class(classname = "GauPro",
               optim(start.par.i, optim.func, method="L-BFGS-B", lower=lower, upper=upper, hessian=F)
             }
           )
-          if (!inherits(current, "try-error")) {#browser()
+          if (!inherits(current, "try-error")) {
             if (self$useGrad) {current$counts <- c(NA,NA);if(is.null(current$message))current$message=NA}
             details.new <- data.frame(start=paste(signif(start.par.i,3),collapse=","),end=paste(signif(current$par,3),collapse=","),value=current$value,func_evals=current$counts[1],grad_evals=current$counts[2],convergence=current$convergence, message=current$message, row.names = NULL, stringsAsFactors=F)
           } else{

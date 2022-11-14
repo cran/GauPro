@@ -1,8 +1,8 @@
-corr_gauss_noC <- function(a, b, theta) {#browser()
+corr_gauss_noC <- function(a, b, theta) {
   exp(-sum(theta * (a-b)^2))
 }
 
-corr_gauss_matrix_noC <- function(x, x2=x, theta) {#browser()
+corr_gauss_matrix_noC <- function(x, x2=x, theta) {
   #outer(x,x2, gauss_cor)
   outer(1:nrow(x),1:nrow(x2), Vectorize(function(i,j) corr_gauss_noC(x[i,], x2[j,], theta=theta)))
 }
@@ -39,11 +39,11 @@ corr_gauss_matrix <- function(x, x2=NULL, theta) {
 #   total = exp(-total);
 #   return total;
 #   }')
-if (F) {
-  corr_gaussC(1:5, 6:10, 1e-2/(1:5))
-
-  system.time(replicate(1e5, corr_gaussC(1:10, 6:15, 1e-2/(1:10))))
-}
+# if (F) {
+#   corr_gaussC(1:5, 6:10, 1e-2)
+#
+#   system.time(replicate(1e5, corr_gaussC(1:10, 6:15, 1e-2)))
+# }
 
 # Rcpp::cppFunction('NumericMatrix corr_gauss_matrixC_wrongplace(NumericMatrix x, NumericMatrix y, NumericVector theta) {
 #   int nrow = x.nrow(), ncol = y.nrow();

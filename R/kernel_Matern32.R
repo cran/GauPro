@@ -12,7 +12,18 @@
 #' @field sqrt3 Saved value of square root of 3
 #' @examples
 #' k1 <- Matern32$new(beta=0)
-Matern32 <- R6::R6Class(classname = "GauPro_kernel_Matern32",
+#' plot(k1)
+#'
+#' n <- 12
+#' x <- matrix(seq(0,1,length.out = n), ncol=1)
+#' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Matern32$new(1),
+#'                               parallel=FALSE)
+#' gp$predict(.454)
+#' gp$plot1D()
+#' gp$cool1Dplot()
+Matern32 <- R6::R6Class(
+  classname = "GauPro_kernel_Matern32",
   inherit = GauPro_kernel_beta,
   public = list(
     sqrt3 = sqrt(3),
@@ -42,7 +53,7 @@ Matern32 <- R6::R6Class(classname = "GauPro_kernel_Matern32",
         }
 
         s2 <- 10^logs2
-      } else {#browser()
+      } else {
         if (is.null(beta)) {beta <- self$beta}
         if (is.null(s2)) {s2 <- self$s2}
       }
@@ -60,11 +71,11 @@ Matern32 <- R6::R6Class(classname = "GauPro_kernel_Matern32",
         # outer(1:nrow(x), 1:nrow(y), Vectorize(function(i,j){self$kone(x[i,],y[j,],theta=theta, s2=s2)}))
         s2 * corr_matern32_matrixC(x, y, theta)
       } else if (is.matrix(x) & !is.matrix(y)) {
-        # apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, s2=s2)})
-        s2 * corr_matern32_matvecC(x, y, theta)
+        apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, s2=s2)})
+        # s2 * corr_matern32_matvecC(x, y, theta)
       } else if (is.matrix(y)) {
-        # apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, s2=s2)})
-        s2 * corr_matern32_matvecC(y, x, theta)
+        apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, s2=s2)})
+        # s2 * corr_matern32_matvecC(y, x, theta)
       } else {
         self$kone(x, y, theta=theta, s2=s2)
       }
@@ -121,33 +132,43 @@ Matern32 <- R6::R6Class(classname = "GauPro_kernel_Matern32",
       }
 
       lenparams_D <- self$beta_length*self$beta_est + self$s2_est
-      dC_dparams <- array(dim=c(lenparams_D, n, n)) # Return as array
-      if (self$s2_est) {
-        dC_dparams[lenparams_D, , ] <- C * log10 # Deriv for logs2
-      }
 
-      # Loop to set beta derivatives
-      if (self$beta_est) {
-        for (i in seq(1, n-1, 1)) {
-          for (j in seq(i+1, n, 1)) {
-            tx2 <- sum(theta * (X[i,]-X[j,])^2)
-            t1 <- sqrt(3 * tx2)
-            t3 <- C[i,j] * (1/(1+t1) - 1) * self$sqrt3 * log10
-            sqrttx2 <- sqrt(tx2)
+      if (self$useC) {
+        dC_dparams <- kernel_matern32_dC(X, theta, C_nonug, self$s2_est,
+                                         self$beta_est, lenparams_D, s2*nug)
+      } else {
+        dC_dparams <- array(dim=c(lenparams_D, n, n)) # Return as array
+        if (self$s2_est) {
+          dC_dparams[lenparams_D, , ] <- C * log10 # Deriv for logs2
+        }
+
+        # Loop to set beta derivatives
+        if (self$beta_est) {
+          for (i in seq(1, n-1, 1)) {
+            for (j in seq(i+1, n, 1)) {
+              tx2 <- sum(theta * (X[i,]-X[j,])^2)
+              if (tx2 == 0) { # Avoid divide by 0 error
+                # When x are equal, changing param has no effect on correlation
+                dC_dparams[1:length(beta),i,j] <- dC_dparams[1:length(beta),j,i] <- 0
+              } else {
+                t1 <- sqrt(3 * tx2)
+                t3 <- C[i,j] * (1/(1+t1) - 1) * self$sqrt3 * log10
+                sqrttx2 <- sqrt(tx2)
+                for (k in 1:length(beta)) {
+                  dt1dbk <- .5 * (X[i,k] - X[j,k])^2 / sqrttx2
+                  dC_dparams[k,i,j] <- t3 * dt1dbk * theta[k]   #s2 * (1+t1) * exp(-t1) *-dt1dbk + s2 * dt1dbk * exp(-t1)
+                  dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+                }
+              }
+            }
+          }
+          for (i in seq(1, n, 1)) { # Get diagonal set to zero
             for (k in 1:length(beta)) {
-              dt1dbk <- .5 * (X[i,k] - X[j,k])^2 / sqrttx2
-              dC_dparams[k,i,j] <- t3 * dt1dbk * theta[k]   #s2 * (1+t1) * exp(-t1) *-dt1dbk + s2 * dt1dbk * exp(-t1)
-              dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+              dC_dparams[k,i,i] <- 0
             }
           }
         }
-        for (i in seq(1, n, 1)) { # Get diagonal set to zero
-          for (k in 1:length(beta)) {
-            dC_dparams[k,i,i] <- 0
-          }
-        }
       }
-
       return(dC_dparams=dC_dparams)
     },
     #' @description Derivative of covariance with respect to X
@@ -173,6 +194,13 @@ Matern32 <- R6::R6Class(classname = "GauPro_kernel_Matern32",
         }
       }
       dC_dx
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Matern 3/2\n')
+      cat('\tD    =', self$D, '\n')
+      cat('\tbeta =', signif(self$beta, 3), '\n')
+      cat('\ts2   =', self$s2, '\n')
     }
   )
 )

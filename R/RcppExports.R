@@ -87,6 +87,21 @@ corr_exponential_matrixvecC <- function(x, y, theta) {
     .Call(`_GauPro_corr_exponential_matrixvecC`, x, y, theta)
 }
 
+#' Derivative of Matern 5/2 kernel covariance matrix in C
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @param C_nonug cov mat without nugget
+#' @param s2_est whether s2 is being estimated
+#' @param beta_est Whether theta/beta is being estimated
+#' @param lenparams_D Number of parameters the derivative is being calculated for
+#' @param s2_nug s2 times the nug
+#' @param s2 s2 parameter
+#' @return Correlation matrix
+#' @export
+kernel_exponential_dC <- function(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug, s2) {
+    .Call(`_GauPro_kernel_exponential_dC`, x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug, s2)
+}
+
 #' Correlation Gaussian matrix gradient in C using Armadillo
 #' @param XX Matrix XX to get gradient for
 #' @param X Matrix X GP was fit to
@@ -172,7 +187,7 @@ corr_gauss_matrix_armaC <- function(x, y, theta, s2 = 1.0) {
     .Call(`_GauPro_corr_gauss_matrix_armaC`, x, y, theta, s2)
 }
 
-#' Correlation Gaussian matrix in C (symmetric)
+#' Derivative of Gaussian kernel covariance matrix in C
 #' @param x Matrix x
 #' @param theta Theta vector
 #' @param C_nonug cov mat without nugget
@@ -182,17 +197,76 @@ corr_gauss_matrix_armaC <- function(x, y, theta, s2 = 1.0) {
 #' @param s2_nug s2 times the nug
 #' @return Correlation matrix
 #' @export
-#' @examples
-#' corr_gauss_matrix_symC(matrix(c(1,0,0,1),2,2),c(1,1))
 kernel_gauss_dC <- function(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug) {
     .Call(`_GauPro_kernel_gauss_dC`, x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug)
+}
+
+#' Correlation Latent factor  matrix in C (symmetric)
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @param xindex Index to use
+#' @param latentdim Number of latent dimensions
+#' @param offdiagequal What to set off-diagonal values with matching values to.
+#' @return Correlation matrix
+#' @export
+#' @examples
+#' corr_latentfactor_matrix_symC(matrix(c(1,.5, 2,1.6, 1,0),ncol=2,byrow=TRUE),
+#'                               c(1.5,1.8), 1, 1, 1-1e-6)
+#' corr_latentfactor_matrix_symC(matrix(c(0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,4),
+#'                                      ncol=4, byrow=TRUE),
+#'   c(0.101, -0.714, 0.114, -0.755, 0.117, -0.76, 0.116, -0.752),
+#'   4, 2, 1-1e-6) * 6.85
+corr_latentfactor_matrix_symC <- function(x, theta, xindex, latentdim, offdiagequal) {
+    .Call(`_GauPro_corr_latentfactor_matrix_symC`, x, theta, xindex, latentdim, offdiagequal)
+}
+
+#' Correlation Latent factor  matrix in C (symmetric)
+#' @param x Matrix x
+#' @param y Matrix y
+#' @param theta Theta vector
+#' @param xindex Index to use
+#' @param latentdim Number of latent dimensions
+#' @param offdiagequal What to set off-diagonal values with matching values to.
+#' @return Correlation matrix
+#' @export
+#' @examples
+#' corr_latentfactor_matrixmatrixC(matrix(c(1,.5, 2,1.6, 1,0),ncol=2,byrow=TRUE),
+#'                                 matrix(c(2,1.6, 1,0),ncol=2,byrow=TRUE),
+#'                                 c(1.5,1.8), 1, 1, 1-1e-6)
+#' corr_latentfactor_matrixmatrixC(matrix(c(0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,4),
+#'                                   ncol=4, byrow=TRUE),
+#'                                 matrix(c(0,0,0,2,0,0,0,4,0,0,0,1),
+#'                                   ncol=4, byrow=TRUE),
+#'   c(0.101, -0.714, 0.114, -0.755, 0.117, -0.76, 0.116, -0.752),
+#'   4, 2, 1-1e-6) * 6.85
+corr_latentfactor_matrixmatrixC <- function(x, y, theta, xindex, latentdim, offdiagequal) {
+    .Call(`_GauPro_corr_latentfactor_matrixmatrixC`, x, y, theta, xindex, latentdim, offdiagequal)
+}
+
+#' Derivative of covariance matrix of X with respect to kernel
+#' parameters for the Latent Factor Kernel
+#' @param x Matrix x
+#' @param pf pf vector
+#' @param C_nonug cov mat without nugget
+#' @param s2_est whether s2 is being estimated
+#' @param p_est Whether theta/beta is being estimated
+#' @param lenparams_D Number of parameters the derivative is being calculated for
+#' @param s2_nug s2 times the nug
+#' @param latentdim Number of latent dimensions
+#' @param xindex Which column of x is the indexing variable
+#' @param nlevels Number of levels
+#' @param s2 Value of s2
+#' @return Correlation matrix
+#' @export
+kernel_latentFactor_dC <- function(x, pf, C_nonug, s2_est, p_est, lenparams_D, s2_nug, latentdim, xindex, nlevels, s2) {
+    .Call(`_GauPro_kernel_latentFactor_dC`, x, pf, C_nonug, s2_est, p_est, lenparams_D, s2_nug, latentdim, xindex, nlevels, s2)
 }
 
 corr_matern32_matrixC <- function(x, y, theta) {
     .Call(`_GauPro_corr_matern32_matrixC`, x, y, theta)
 }
 
-#' Correlation Gaussian matrix in C (symmetric)
+#' Correlation Matern 3/2 matrix in C (symmetric)
 #' @param x Matrix x
 #' @param theta Theta vector
 #' @return Correlation matrix
@@ -207,6 +281,20 @@ corr_matern32_matrixvecC <- function(x, y, theta) {
     .Call(`_GauPro_corr_matern32_matrixvecC`, x, y, theta)
 }
 
+#' Derivative of Matern 5/2 kernel covariance matrix in C
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @param C_nonug cov mat without nugget
+#' @param s2_est whether s2 is being estimated
+#' @param beta_est Whether theta/beta is being estimated
+#' @param lenparams_D Number of parameters the derivative is being calculated for
+#' @param s2_nug s2 times the nug
+#' @return Correlation matrix
+#' @export
+kernel_matern32_dC <- function(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug) {
+    .Call(`_GauPro_kernel_matern32_dC`, x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug)
+}
+
 corr_matern52_matrixC <- function(x, y, theta) {
     .Call(`_GauPro_corr_matern52_matrixC`, x, y, theta)
 }
@@ -217,13 +305,27 @@ corr_matern52_matrixC <- function(x, y, theta) {
 #' @return Correlation matrix
 #' @export
 #' @examples
-#' corr_gauss_matrix_symC(matrix(c(1,0,0,1),2,2),c(1,1))
+#' corr_matern52_matrix_symC(matrix(c(1,0,0,1),2,2),c(1,1))
 corr_matern52_matrix_symC <- function(x, theta) {
     .Call(`_GauPro_corr_matern52_matrix_symC`, x, theta)
 }
 
 corr_matern52_matrixvecC <- function(x, y, theta) {
     .Call(`_GauPro_corr_matern52_matrixvecC`, x, y, theta)
+}
+
+#' Derivative of Matern 5/2 kernel covariance matrix in C
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @param C_nonug cov mat without nugget
+#' @param s2_est whether s2 is being estimated
+#' @param beta_est Whether theta/beta is being estimated
+#' @param lenparams_D Number of parameters the derivative is being calculated for
+#' @param s2_nug s2 times the nug
+#' @return Correlation matrix
+#' @export
+kernel_matern52_dC <- function(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug) {
+    .Call(`_GauPro_kernel_matern52_dC`, x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug)
 }
 
 deviance_part <- function(theta, nug, X, Z, Kinv) {
@@ -266,14 +368,10 @@ deviance_grad_joint <- function(X, K, Kinv, y) {
 #' @param Cinv_yminusmu Vector that is the inverse of C times y minus the mean.
 #' @return Vector, one value for each parameter
 #' @examples
-#' # corr_gauss_dCdX(matrix(c(1,0,0,1),2,2),c(1,1))
+#' gradfuncarray(array(dim=c(2,4,4), data=rnorm(32)), matrix(rnorm(16),4,4), rnorm(4))
 #' @export
 gradfuncarray <- function(dC_dparams, Cinv, Cinv_yminusmu) {
     .Call(`_GauPro_gradfuncarray`, dC_dparams, Cinv, Cinv_yminusmu)
-}
-
-rcpp_hello_world <- function() {
-    .Call(`_GauPro_rcpp_hello_world`)
 }
 
 pred_meanC <- function(XX, kx_xx, mu_hat, Kinv, Z) {

@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // Gaussian_deviance_part
 double Gaussian_deviance_part(arma::vec theta, double nug, arma::mat X, arma::mat Z, arma::mat Kinv);
 RcppExport SEXP _GauPro_Gaussian_deviance_part(SEXP thetaSEXP, SEXP nugSEXP, SEXP XSEXP, SEXP ZSEXP, SEXP KinvSEXP) {
@@ -124,6 +129,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kernel_exponential_dC
+arma::cube kernel_exponential_dC(arma::mat x, arma::vec theta, arma::mat C_nonug, bool s2_est, bool beta_est, int lenparams_D, double s2_nug, double s2);
+RcppExport SEXP _GauPro_kernel_exponential_dC(SEXP xSEXP, SEXP thetaSEXP, SEXP C_nonugSEXP, SEXP s2_estSEXP, SEXP beta_estSEXP, SEXP lenparams_DSEXP, SEXP s2_nugSEXP, SEXP s2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type C_nonug(C_nonugSEXP);
+    Rcpp::traits::input_parameter< bool >::type s2_est(s2_estSEXP);
+    Rcpp::traits::input_parameter< bool >::type beta_est(beta_estSEXP);
+    Rcpp::traits::input_parameter< int >::type lenparams_D(lenparams_DSEXP);
+    Rcpp::traits::input_parameter< double >::type s2_nug(s2_nugSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_exponential_dC(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug, s2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // corr_gauss_dCdX
 arma::cube corr_gauss_dCdX(arma::mat XX, arma::mat X, arma::vec theta, double s2);
 RcppExport SEXP _GauPro_corr_gauss_dCdX(SEXP XXSEXP, SEXP XSEXP, SEXP thetaSEXP, SEXP s2SEXP) {
@@ -219,6 +242,58 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// corr_latentfactor_matrix_symC
+NumericMatrix corr_latentfactor_matrix_symC(NumericMatrix x, NumericVector theta, int xindex, int latentdim, double offdiagequal);
+RcppExport SEXP _GauPro_corr_latentfactor_matrix_symC(SEXP xSEXP, SEXP thetaSEXP, SEXP xindexSEXP, SEXP latentdimSEXP, SEXP offdiagequalSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< int >::type xindex(xindexSEXP);
+    Rcpp::traits::input_parameter< int >::type latentdim(latentdimSEXP);
+    Rcpp::traits::input_parameter< double >::type offdiagequal(offdiagequalSEXP);
+    rcpp_result_gen = Rcpp::wrap(corr_latentfactor_matrix_symC(x, theta, xindex, latentdim, offdiagequal));
+    return rcpp_result_gen;
+END_RCPP
+}
+// corr_latentfactor_matrixmatrixC
+NumericMatrix corr_latentfactor_matrixmatrixC(NumericMatrix x, NumericMatrix y, NumericVector theta, int xindex, int latentdim, double offdiagequal);
+RcppExport SEXP _GauPro_corr_latentfactor_matrixmatrixC(SEXP xSEXP, SEXP ySEXP, SEXP thetaSEXP, SEXP xindexSEXP, SEXP latentdimSEXP, SEXP offdiagequalSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< int >::type xindex(xindexSEXP);
+    Rcpp::traits::input_parameter< int >::type latentdim(latentdimSEXP);
+    Rcpp::traits::input_parameter< double >::type offdiagequal(offdiagequalSEXP);
+    rcpp_result_gen = Rcpp::wrap(corr_latentfactor_matrixmatrixC(x, y, theta, xindex, latentdim, offdiagequal));
+    return rcpp_result_gen;
+END_RCPP
+}
+// kernel_latentFactor_dC
+arma::cube kernel_latentFactor_dC(arma::mat x, arma::vec pf, arma::mat C_nonug, bool s2_est, bool p_est, int lenparams_D, double s2_nug, int latentdim, int xindex, int nlevels, double s2);
+RcppExport SEXP _GauPro_kernel_latentFactor_dC(SEXP xSEXP, SEXP pfSEXP, SEXP C_nonugSEXP, SEXP s2_estSEXP, SEXP p_estSEXP, SEXP lenparams_DSEXP, SEXP s2_nugSEXP, SEXP latentdimSEXP, SEXP xindexSEXP, SEXP nlevelsSEXP, SEXP s2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type pf(pfSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type C_nonug(C_nonugSEXP);
+    Rcpp::traits::input_parameter< bool >::type s2_est(s2_estSEXP);
+    Rcpp::traits::input_parameter< bool >::type p_est(p_estSEXP);
+    Rcpp::traits::input_parameter< int >::type lenparams_D(lenparams_DSEXP);
+    Rcpp::traits::input_parameter< double >::type s2_nug(s2_nugSEXP);
+    Rcpp::traits::input_parameter< int >::type latentdim(latentdimSEXP);
+    Rcpp::traits::input_parameter< int >::type xindex(xindexSEXP);
+    Rcpp::traits::input_parameter< int >::type nlevels(nlevelsSEXP);
+    Rcpp::traits::input_parameter< double >::type s2(s2SEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_latentFactor_dC(x, pf, C_nonug, s2_est, p_est, lenparams_D, s2_nug, latentdim, xindex, nlevels, s2));
+    return rcpp_result_gen;
+END_RCPP
+}
 // corr_matern32_matrixC
 NumericMatrix corr_matern32_matrixC(NumericMatrix x, NumericMatrix y, NumericVector theta);
 RcppExport SEXP _GauPro_corr_matern32_matrixC(SEXP xSEXP, SEXP ySEXP, SEXP thetaSEXP) {
@@ -257,6 +332,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kernel_matern32_dC
+arma::cube kernel_matern32_dC(arma::mat x, arma::vec theta, arma::mat C_nonug, bool s2_est, bool beta_est, int lenparams_D, double s2_nug);
+RcppExport SEXP _GauPro_kernel_matern32_dC(SEXP xSEXP, SEXP thetaSEXP, SEXP C_nonugSEXP, SEXP s2_estSEXP, SEXP beta_estSEXP, SEXP lenparams_DSEXP, SEXP s2_nugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type C_nonug(C_nonugSEXP);
+    Rcpp::traits::input_parameter< bool >::type s2_est(s2_estSEXP);
+    Rcpp::traits::input_parameter< bool >::type beta_est(beta_estSEXP);
+    Rcpp::traits::input_parameter< int >::type lenparams_D(lenparams_DSEXP);
+    Rcpp::traits::input_parameter< double >::type s2_nug(s2_nugSEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_matern32_dC(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug));
+    return rcpp_result_gen;
+END_RCPP
+}
 // corr_matern52_matrixC
 NumericMatrix corr_matern52_matrixC(NumericMatrix x, NumericMatrix y, NumericVector theta);
 RcppExport SEXP _GauPro_corr_matern52_matrixC(SEXP xSEXP, SEXP ySEXP, SEXP thetaSEXP) {
@@ -292,6 +384,23 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
     Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
     rcpp_result_gen = Rcpp::wrap(corr_matern52_matrixvecC(x, y, theta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// kernel_matern52_dC
+arma::cube kernel_matern52_dC(arma::mat x, arma::vec theta, arma::mat C_nonug, bool s2_est, bool beta_est, int lenparams_D, double s2_nug);
+RcppExport SEXP _GauPro_kernel_matern52_dC(SEXP xSEXP, SEXP thetaSEXP, SEXP C_nonugSEXP, SEXP s2_estSEXP, SEXP beta_estSEXP, SEXP lenparams_DSEXP, SEXP s2_nugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type C_nonug(C_nonugSEXP);
+    Rcpp::traits::input_parameter< bool >::type s2_est(s2_estSEXP);
+    Rcpp::traits::input_parameter< bool >::type beta_est(beta_estSEXP);
+    Rcpp::traits::input_parameter< int >::type lenparams_D(lenparams_DSEXP);
+    Rcpp::traits::input_parameter< double >::type s2_nug(s2_nugSEXP);
+    rcpp_result_gen = Rcpp::wrap(kernel_matern52_dC(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -416,16 +525,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::mat >::type Cinv(CinvSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type Cinv_yminusmu(Cinv_yminusmuSEXP);
     rcpp_result_gen = Rcpp::wrap(gradfuncarray(dC_dparams, Cinv, Cinv_yminusmu));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpp_hello_world
-List rcpp_hello_world();
-RcppExport SEXP _GauPro_rcpp_hello_world() {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(rcpp_hello_world());
     return rcpp_result_gen;
 END_RCPP
 }

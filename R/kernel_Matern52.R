@@ -12,7 +12,18 @@
 #' @field sqrt5 Saved value of square root of 5
 #' @examples
 #' k1 <- Matern52$new(beta=0)
-Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
+#' plot(k1)
+#'
+#' n <- 12
+#' x <- matrix(seq(0,1,length.out = n), ncol=1)
+#' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Matern52$new(1),
+#'                               parallel=FALSE)
+#' gp$predict(.454)
+#' gp$plot1D()
+#' gp$cool1Dplot()
+Matern52 <- R6::R6Class(
+  classname = "GauPro_kernel_Matern52",
   inherit = GauPro_kernel_beta,
   public = list(
     sqrt5 = sqrt(5),
@@ -23,7 +34,7 @@ Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
     #' @param beta Correlation parameters.
     #' @param s2 Variance parameter.
     #' @param params parameters to use instead of beta and s2.
-    k = function(x, y=NULL, beta=self$beta, s2=self$s2, params=NULL) {#browser()
+    k = function(x, y=NULL, beta=self$beta, s2=self$s2, params=NULL) {
       if (!is.null(params)) {
         # lenpar <- length(params)
         # beta <- params[1:(lenpar-1)]
@@ -62,12 +73,12 @@ Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
         s2 * corr_matern52_matrixC(x, y, theta)
       } else if (is.matrix(x) & !is.matrix(y)) {
         # s2 * corr_gauss_matrixvecC(x, y, theta)
-        # apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, s2=s2)})
-        s2 * corr_matern52_matvecC(x, y, theta)
+        apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, s2=s2)})
+        # s2 * corr_matern52_matvecC(x, y, theta)
       } else if (is.matrix(y)) {
         # s2 * corr_gauss_matrixvecC(y, x, theta)
-        # apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, s2=s2)})
-        s2 * corr_matern52_matvecC(y, x, theta)
+        apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, s2=s2)})
+        # s2 * corr_matern52_matvecC(y, x, theta)
       } else {
         self$kone(x, y, theta=theta, s2=s2)
       }
@@ -90,7 +101,7 @@ Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
     #' @param C_nonug Covariance without nugget added to diagonal
     #' @param C Covariance with nugget
     #' @param nug Value of nugget
-    dC_dparams = function(params=NULL, X, C_nonug, C, nug) {#browser(text = "Make sure all in one list")
+    dC_dparams = function(params=NULL, X, C_nonug, C, nug) {
       n <- nrow(X)
 
       lenparams <- length(params)
@@ -124,29 +135,40 @@ Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
       }
 
       lenparams_D <- self$beta_length*self$beta_est + self$s2_est
-      dC_dparams <- array(dim=c(lenparams_D, n, n), data = 0)
-      if (self$s2_est) {
-        dC_dparams[lenparams_D,,] <- C * log10 # Deriv for logs2
-      }
 
-      # Deriv for beta
-      if (self$beta_est) {
-        for (i in seq(1, n-1, 1)) {
-          for (j in seq(i+1, n, 1)) {
-            tx2 <- sum(theta * (X[i,]-X[j,])^2)
-            t1 <- sqrt(5 * tx2)
-            t3 <- C[i,j] * ((1+2*t1/3)/(1+t1+t1^2/3) - 1) * self$sqrt5 * log10
-            half_over_sqrttx2 <- .5 / sqrt(tx2)
-            for (k in 1:length(beta)) {
-              dt1dbk <- half_over_sqrttx2 * (X[i,k] - X[j,k])^2
-              dC_dparams[k,i,j] <- t3 * dt1dbk * theta[k]
-              dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+      if (self$useC) {
+        dC_dparams <- kernel_matern52_dC(X, theta, C_nonug, self$s2_est,
+                                         self$beta_est, lenparams_D, s2*nug)
+      } else {
+        dC_dparams <- array(dim=c(lenparams_D, n, n), data = 0)
+        if (self$s2_est) {
+          dC_dparams[lenparams_D,,] <- C * log10 # Deriv for logs2
+        }
+
+        # Deriv for beta
+        if (self$beta_est) {
+          for (i in seq(1, n-1, 1)) {
+            for (j in seq(i+1, n, 1)) {
+              tx2 <- sum(theta * (X[i,]-X[j,])^2)
+              if (tx2 == 0) { # Avoid divide by 0 error
+                # When x are equal, changing param has no effect on correlation
+                dC_dparams[1:length(beta),i,j] <- dC_dparams[1:length(beta),j,i] <- 0
+              } else {
+                t1 <- sqrt(5 * tx2)
+                t3 <- C[i,j] * ((1+2*t1/3)/(1+t1+t1^2/3) - 1) * self$sqrt5 * log10
+                half_over_sqrttx2 <- .5 / sqrt(tx2)
+                for (k in 1:length(beta)) {
+                  dt1dbk <- half_over_sqrttx2 * (X[i,k] - X[j,k])^2
+                  dC_dparams[k,i,j] <- t3 * dt1dbk * theta[k]
+                  dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+                }
+              }
             }
           }
-        }
-        for (i in seq(1, n, 1)) { # Get diagonal set to zero
-          for (k in 1:length(beta)) {
-            dC_dparams[k,i,i] <- 0
+          for (i in seq(1, n, 1)) { # Get diagonal set to zero
+            for (k in 1:length(beta)) {
+              dC_dparams[k,i,i] <- 0
+            }
           }
         }
       }
@@ -159,7 +181,7 @@ Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
     #' @param theta Correlation parameters
     #' @param beta log of theta
     #' @param s2 Variance parameter
-    dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {#browser()
+    dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {
       if (missing(theta)) {theta <- 10^beta}
       if (!is.matrix(XX)) {stop()}
       d <- ncol(XX)
@@ -171,11 +193,21 @@ Matern52 <- R6::R6Class(classname = "GauPro_kernel_Matern52",
         for (j in 1:d) {
           for (k in 1:n) {
             r <- sqrt(sum(theta * (XX[i,] - X[k,]) ^ 2))
-            dC_dx[i, j, k] <- (-5*r/3 - 5/3*self$sqrt5*r^2) * s2 * exp(-self$sqrt5 * r) * theta[j] * (XX[i, j] - X[k, j]) / r
+            dC_dx[i, j, k] <- (
+              (-5*r/3 - 5/3*self$sqrt5*r^2) * s2 * exp(-self$sqrt5 * r) *
+                theta[j] * (XX[i, j] - X[k, j]) / r
+            )
           }
         }
       }
       dC_dx
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Matern 5/2\n')
+      cat('\tD    =', self$D, '\n')
+      cat('\tbeta =', signif(self$beta, 3), '\n')
+      cat('\ts2   =', self$s2, '\n')
     }
   )
 )

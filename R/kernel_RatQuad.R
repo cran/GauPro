@@ -70,7 +70,8 @@ RatQuad <- R6::R6Class(
     #' @param logalpha A correlation parameter
     #' @param s2 Variance parameter.
     #' @param params parameters to use instead of beta and s2.
-    k = function(x, y=NULL, beta=self$beta, logalpha=self$logalpha, s2=self$s2, params=NULL) {#browser()
+    k = function(x, y=NULL, beta=self$beta, logalpha=self$logalpha,
+                 s2=self$s2, params=NULL) {
       if (!is.null(params)) {
         lenparams <- length(params)
         # beta <- params[1:(lenpar-2)]
@@ -94,7 +95,7 @@ RatQuad <- R6::R6Class(
         }
 
         s2 <- 10^logs2
-      } else {#browser()
+      } else {
         if (is.null(beta)) {beta <- self$beta}
         if (is.null(logalpha)) {logalpha <- self$logalpha}
         if (is.null(s2)) {s2 <- self$s2}
@@ -102,7 +103,7 @@ RatQuad <- R6::R6Class(
       theta <- 10^beta
       alpha <- 10^logalpha
       if (is.null(y)) {
-        if (is.matrix(x)) {#browser()
+        if (is.matrix(x)) {
           # cgmtry <- try(val <- s2 * corr_gauss_matrix_symC(x, theta))
           val <- outer(1:nrow(x), 1:nrow(x),
                        Vectorize(function(i,j){
@@ -231,7 +232,8 @@ RatQuad <- R6::R6Class(
     #' @param beta log of theta
     #' @param alpha parameter
     #' @param s2 Variance parameter
-    dC_dx = function(XX, X, theta, beta=self$beta, alpha=self$alpha, s2=self$s2) {#browser()
+    dC_dx = function(XX, X, theta, beta=self$beta, alpha=self$alpha,
+                     s2=self$s2) {
       if (missing(theta)) {theta <- 10^beta}
       # p <- 10 ^ logp
       # alpha <- 10 ^ logalpha
@@ -335,6 +337,14 @@ RatQuad <- R6::R6Class(
         self$logs2 <- optim_out[loo]
         self$s2 <- 10 ^ self$logs2
       }
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: Rational quadratic\n')
+      cat('\tD        =', self$D, '\n')
+      cat('\tlogalpha =', signif(self$logalpha, 3), '\n')
+      cat('\tbeta     =', signif(self$beta, 3), '\n')
+      cat('\ts2       =', self$s2, '\n')
     }
   )
 )

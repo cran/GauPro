@@ -29,7 +29,7 @@ Allows for different kernel and trend functions to be used.
          class with \code{X} and \code{Z} as the data.}
 
   \item{\code{update(Xnew=NULL, Znew=NULL, Xall=NULL, Zall=NULL,
-restarts = 5,
+restarts = 0,
 param_update = T, nug.update = self$nug.est)}}{This method updates the
 model, adding new data if given, then running optimization again.}
   }
@@ -42,6 +42,15 @@ y <- sin(2*pi*x) + rnorm(n,0,1e-1)
 gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(1),
                               parallel=FALSE)
 gp$predict(.454)
+gp$plot1D()
+gp$cool1Dplot()
+
+n <- 200
+d <- 7
+x <- matrix(runif(n*d), ncol=d)
+f <- function(x) {x[1]*x[2] + cos(x[3]) + x[4]^2}
+y <- apply(x, 1, f)
+gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian)
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -102,63 +111,91 @@ deviation of each column.}
 
 \item{\code{optimizer}}{What algorithm should be used to optimize the
 parameters.}
+
+\item{\code{track_optim}}{Should it track the parameters evaluated
+while optimizing?}
+
+\item{\code{track_optim_inputs}}{If track_optim is TRUE,
+this will keep a list of parameters evaluated.
+View them with plot_track_optim.}
+
+\item{\code{track_optim_dev}}{If track_optim is TRUE,
+this will keep a vector of the deviance values calculated
+while optimizing parameters.
+View them with plot_track_optim.}
+
+\item{\code{formula}}{Formula}
+
+\item{\code{convert_formula_data}}{List for storing data to convert data
+using the formula}
 }
 \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-new}{\code{GauPro_kernel_model$new()}}
-\item \href{#method-fit}{\code{GauPro_kernel_model$fit()}}
-\item \href{#method-update_K_and_estimates}{\code{GauPro_kernel_model$update_K_and_estimates()}}
-\item \href{#method-predict}{\code{GauPro_kernel_model$predict()}}
-\item \href{#method-pred}{\code{GauPro_kernel_model$pred()}}
-\item \href{#method-pred_one_matrix}{\code{GauPro_kernel_model$pred_one_matrix()}}
-\item \href{#method-pred_mean}{\code{GauPro_kernel_model$pred_mean()}}
-\item \href{#method-pred_meanC}{\code{GauPro_kernel_model$pred_meanC()}}
-\item \href{#method-pred_var}{\code{GauPro_kernel_model$pred_var()}}
-\item \href{#method-pred_LOO}{\code{GauPro_kernel_model$pred_LOO()}}
-\item \href{#method-pred_var_after_adding_points}{\code{GauPro_kernel_model$pred_var_after_adding_points()}}
-\item \href{#method-pred_var_after_adding_points_sep}{\code{GauPro_kernel_model$pred_var_after_adding_points_sep()}}
-\item \href{#method-pred_var_reduction}{\code{GauPro_kernel_model$pred_var_reduction()}}
-\item \href{#method-pred_var_reductions}{\code{GauPro_kernel_model$pred_var_reductions()}}
-\item \href{#method-cool1Dplot}{\code{GauPro_kernel_model$cool1Dplot()}}
-\item \href{#method-plot1D}{\code{GauPro_kernel_model$plot1D()}}
-\item \href{#method-plot2D}{\code{GauPro_kernel_model$plot2D()}}
-\item \href{#method-loglikelihood}{\code{GauPro_kernel_model$loglikelihood()}}
-\item \href{#method-get_optim_functions}{\code{GauPro_kernel_model$get_optim_functions()}}
-\item \href{#method-param_optim_lower}{\code{GauPro_kernel_model$param_optim_lower()}}
-\item \href{#method-param_optim_upper}{\code{GauPro_kernel_model$param_optim_upper()}}
-\item \href{#method-param_optim_start}{\code{GauPro_kernel_model$param_optim_start()}}
-\item \href{#method-param_optim_start0}{\code{GauPro_kernel_model$param_optim_start0()}}
-\item \href{#method-param_optim_start_mat}{\code{GauPro_kernel_model$param_optim_start_mat()}}
-\item \href{#method-optim}{\code{GauPro_kernel_model$optim()}}
-\item \href{#method-optimRestart}{\code{GauPro_kernel_model$optimRestart()}}
-\item \href{#method-update}{\code{GauPro_kernel_model$update()}}
-\item \href{#method-update_fast}{\code{GauPro_kernel_model$update_fast()}}
-\item \href{#method-update_params}{\code{GauPro_kernel_model$update_params()}}
-\item \href{#method-update_data}{\code{GauPro_kernel_model$update_data()}}
-\item \href{#method-update_corrparams}{\code{GauPro_kernel_model$update_corrparams()}}
-\item \href{#method-update_nugget}{\code{GauPro_kernel_model$update_nugget()}}
-\item \href{#method-deviance}{\code{GauPro_kernel_model$deviance()}}
-\item \href{#method-deviance_grad}{\code{GauPro_kernel_model$deviance_grad()}}
-\item \href{#method-deviance_fngr}{\code{GauPro_kernel_model$deviance_fngr()}}
-\item \href{#method-grad}{\code{GauPro_kernel_model$grad()}}
-\item \href{#method-grad_norm}{\code{GauPro_kernel_model$grad_norm()}}
-\item \href{#method-grad_dist}{\code{GauPro_kernel_model$grad_dist()}}
-\item \href{#method-grad_sample}{\code{GauPro_kernel_model$grad_sample()}}
-\item \href{#method-grad_norm2_mean}{\code{GauPro_kernel_model$grad_norm2_mean()}}
-\item \href{#method-grad_norm2_dist}{\code{GauPro_kernel_model$grad_norm2_dist()}}
-\item \href{#method-grad_norm2_sample}{\code{GauPro_kernel_model$grad_norm2_sample()}}
-\item \href{#method-hessian}{\code{GauPro_kernel_model$hessian()}}
-\item \href{#method-sample}{\code{GauPro_kernel_model$sample()}}
-\item \href{#method-print}{\code{GauPro_kernel_model$print()}}
-\item \href{#method-clone}{\code{GauPro_kernel_model$clone()}}
+\item \href{#method-GauPro-new}{\code{GauPro_kernel_model$new()}}
+\item \href{#method-GauPro-fit}{\code{GauPro_kernel_model$fit()}}
+\item \href{#method-GauPro-update_K_and_estimates}{\code{GauPro_kernel_model$update_K_and_estimates()}}
+\item \href{#method-GauPro-predict}{\code{GauPro_kernel_model$predict()}}
+\item \href{#method-GauPro-pred}{\code{GauPro_kernel_model$pred()}}
+\item \href{#method-GauPro-pred_one_matrix}{\code{GauPro_kernel_model$pred_one_matrix()}}
+\item \href{#method-GauPro-pred_mean}{\code{GauPro_kernel_model$pred_mean()}}
+\item \href{#method-GauPro-pred_meanC}{\code{GauPro_kernel_model$pred_meanC()}}
+\item \href{#method-GauPro-pred_var}{\code{GauPro_kernel_model$pred_var()}}
+\item \href{#method-GauPro-pred_LOO}{\code{GauPro_kernel_model$pred_LOO()}}
+\item \href{#method-GauPro-pred_var_after_adding_points}{\code{GauPro_kernel_model$pred_var_after_adding_points()}}
+\item \href{#method-GauPro-pred_var_after_adding_points_sep}{\code{GauPro_kernel_model$pred_var_after_adding_points_sep()}}
+\item \href{#method-GauPro-pred_var_reduction}{\code{GauPro_kernel_model$pred_var_reduction()}}
+\item \href{#method-GauPro-pred_var_reductions}{\code{GauPro_kernel_model$pred_var_reductions()}}
+\item \href{#method-GauPro-plot}{\code{GauPro_kernel_model$plot()}}
+\item \href{#method-GauPro-cool1Dplot}{\code{GauPro_kernel_model$cool1Dplot()}}
+\item \href{#method-GauPro-plot1D}{\code{GauPro_kernel_model$plot1D()}}
+\item \href{#method-GauPro-plot2D}{\code{GauPro_kernel_model$plot2D()}}
+\item \href{#method-GauPro-plotmarginal}{\code{GauPro_kernel_model$plotmarginal()}}
+\item \href{#method-GauPro-plotmarginalrandom}{\code{GauPro_kernel_model$plotmarginalrandom()}}
+\item \href{#method-GauPro-plotLOO}{\code{GauPro_kernel_model$plotLOO()}}
+\item \href{#method-GauPro-plot_track_optim}{\code{GauPro_kernel_model$plot_track_optim()}}
+\item \href{#method-GauPro-loglikelihood}{\code{GauPro_kernel_model$loglikelihood()}}
+\item \href{#method-GauPro-get_optim_functions}{\code{GauPro_kernel_model$get_optim_functions()}}
+\item \href{#method-GauPro-param_optim_lower}{\code{GauPro_kernel_model$param_optim_lower()}}
+\item \href{#method-GauPro-param_optim_upper}{\code{GauPro_kernel_model$param_optim_upper()}}
+\item \href{#method-GauPro-param_optim_start}{\code{GauPro_kernel_model$param_optim_start()}}
+\item \href{#method-GauPro-param_optim_start0}{\code{GauPro_kernel_model$param_optim_start0()}}
+\item \href{#method-GauPro-param_optim_start_mat}{\code{GauPro_kernel_model$param_optim_start_mat()}}
+\item \href{#method-GauPro-optim}{\code{GauPro_kernel_model$optim()}}
+\item \href{#method-GauPro-optimRestart}{\code{GauPro_kernel_model$optimRestart()}}
+\item \href{#method-GauPro-update}{\code{GauPro_kernel_model$update()}}
+\item \href{#method-GauPro-update_fast}{\code{GauPro_kernel_model$update_fast()}}
+\item \href{#method-GauPro-update_params}{\code{GauPro_kernel_model$update_params()}}
+\item \href{#method-GauPro-update_data}{\code{GauPro_kernel_model$update_data()}}
+\item \href{#method-GauPro-update_corrparams}{\code{GauPro_kernel_model$update_corrparams()}}
+\item \href{#method-GauPro-update_nugget}{\code{GauPro_kernel_model$update_nugget()}}
+\item \href{#method-GauPro-deviance}{\code{GauPro_kernel_model$deviance()}}
+\item \href{#method-GauPro-deviance_grad}{\code{GauPro_kernel_model$deviance_grad()}}
+\item \href{#method-GauPro-deviance_fngr}{\code{GauPro_kernel_model$deviance_fngr()}}
+\item \href{#method-GauPro-grad}{\code{GauPro_kernel_model$grad()}}
+\item \href{#method-GauPro-grad_norm}{\code{GauPro_kernel_model$grad_norm()}}
+\item \href{#method-GauPro-grad_dist}{\code{GauPro_kernel_model$grad_dist()}}
+\item \href{#method-GauPro-grad_sample}{\code{GauPro_kernel_model$grad_sample()}}
+\item \href{#method-GauPro-grad_norm2_mean}{\code{GauPro_kernel_model$grad_norm2_mean()}}
+\item \href{#method-GauPro-grad_norm2_dist}{\code{GauPro_kernel_model$grad_norm2_dist()}}
+\item \href{#method-GauPro-grad_norm2_sample}{\code{GauPro_kernel_model$grad_norm2_sample()}}
+\item \href{#method-GauPro-hessian}{\code{GauPro_kernel_model$hessian()}}
+\item \href{#method-GauPro-sample}{\code{GauPro_kernel_model$sample()}}
+\item \href{#method-GauPro-EI}{\code{GauPro_kernel_model$EI()}}
+\item \href{#method-GauPro-maxEI}{\code{GauPro_kernel_model$maxEI()}}
+\item \href{#method-GauPro-maxEIwithfactors}{\code{GauPro_kernel_model$maxEIwithfactors()}}
+\item \href{#method-GauPro-maxEIwithfactorsordiscrete}{\code{GauPro_kernel_model$maxEIwithfactorsordiscrete()}}
+\item \href{#method-GauPro-maxqEI}{\code{GauPro_kernel_model$maxqEI()}}
+\item \href{#method-GauPro-KG}{\code{GauPro_kernel_model$KG()}}
+\item \href{#method-GauPro-print}{\code{GauPro_kernel_model$print()}}
+\item \href{#method-GauPro-clone}{\code{GauPro_kernel_model$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-new"></a>}}
-\if{latex}{\out{\hypertarget{method-new}{}}}
+\if{html}{\out{<a id="method-GauPro-new"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-new}{}}}
 \subsection{Method \code{new()}}{
 Create kernel_model object
 \subsection{Usage}{
@@ -168,18 +205,19 @@ Create kernel_model object
   kernel,
   trend,
   verbose = 0,
-  useC = F,
-  useGrad = T,
+  useC = TRUE,
+  useGrad = TRUE,
   parallel = FALSE,
   parallel_cores = "detect",
   nug = 1e-06,
   nug.min = 1e-08,
-  nug.max = Inf,
+  nug.max = 100,
   nug.est = TRUE,
   param.est = TRUE,
-  restarts = 5,
+  restarts = 0,
   normalize = FALSE,
   optimizer = "L-BFGS-B",
+  track_optim = FALSE,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -225,14 +263,17 @@ estimating parameters?}
 \item{\code{optimizer}}{What algorithm should be used to optimize the
 parameters.}
 
+\item{\code{track_optim}}{Should it track the parameters evaluated
+while optimizing?}
+
 \item{\code{...}}{Not used}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-fit"></a>}}
-\if{latex}{\out{\hypertarget{method-fit}{}}}
+\if{html}{\out{<a id="method-GauPro-fit"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-fit}{}}}
 \subsection{Method \code{fit()}}{
 Fit model
 \subsection{Usage}{
@@ -250,8 +291,8 @@ Fit model
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update_K_and_estimates"></a>}}
-\if{latex}{\out{\hypertarget{method-update_K_and_estimates}{}}}
+\if{html}{\out{<a id="method-GauPro-update_K_and_estimates"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update_K_and_estimates}{}}}
 \subsection{Method \code{update_K_and_estimates()}}{
 Update covariance matrix and estimates
 \subsection{Usage}{
@@ -260,12 +301,18 @@ Update covariance matrix and estimates
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-predict"></a>}}
-\if{latex}{\out{\hypertarget{method-predict}{}}}
+\if{html}{\out{<a id="method-GauPro-predict"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-predict}{}}}
 \subsection{Method \code{predict()}}{
 Predict for a matrix of points
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$predict(XX, se.fit = F, covmat = F, split_speed = F)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$predict(
+  XX,
+  se.fit = F,
+  covmat = F,
+  split_speed = F,
+  mean_dist = FALSE
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -278,17 +325,25 @@ Predict for a matrix of points
 \item{\code{covmat}}{Should covariance matrix be returned?}
 
 \item{\code{split_speed}}{Should the matrix be split for faster predictions?}
+
+\item{\code{mean_dist}}{Should the error be for the distribution of the mean?}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred"></a>}}
-\if{latex}{\out{\hypertarget{method-pred}{}}}
+\if{html}{\out{<a id="method-GauPro-pred"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred}{}}}
 \subsection{Method \code{pred()}}{
 Predict for a matrix of points
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$pred(XX, se.fit = F, covmat = F, split_speed = F)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$pred(
+  XX,
+  se.fit = F,
+  covmat = F,
+  split_speed = F,
+  mean_dist = FALSE
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -301,13 +356,15 @@ Predict for a matrix of points
 \item{\code{covmat}}{Should covariance matrix be returned?}
 
 \item{\code{split_speed}}{Should the matrix be split for faster predictions?}
+
+\item{\code{mean_dist}}{Should the error be for the distribution of the mean?}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_one_matrix"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_one_matrix}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_one_matrix"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_one_matrix}{}}}
 \subsection{Method \code{pred_one_matrix()}}{
 Predict for a matrix of points
 \subsection{Usage}{
@@ -315,7 +372,8 @@ Predict for a matrix of points
   XX,
   se.fit = F,
   covmat = F,
-  return_df = FALSE
+  return_df = FALSE,
+  mean_dist = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -330,13 +388,15 @@ Predict for a matrix of points
 
 \item{\code{return_df}}{When returning se.fit, should it be returned in
 a data frame?}
+
+\item{\code{mean_dist}}{Should the error be for the distribution of the mean?}
 }
 \if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_mean"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_mean}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_mean"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_mean}{}}}
 \subsection{Method \code{pred_mean()}}{
 Predict mean
 \subsection{Usage}{
@@ -354,8 +414,8 @@ Predict mean
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_meanC"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_meanC}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_meanC"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_meanC}{}}}
 \subsection{Method \code{pred_meanC()}}{
 Predict mean using C
 \subsection{Usage}{
@@ -373,8 +433,8 @@ Predict mean using C
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_var"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_var}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_var"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_var}{}}}
 \subsection{Method \code{pred_var()}}{
 Predict variance
 \subsection{Usage}{
@@ -396,8 +456,8 @@ Predict variance
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_LOO"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_LOO}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_LOO"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_LOO}{}}}
 \subsection{Method \code{pred_LOO()}}{
 leave one out predictions
 \subsection{Usage}{
@@ -413,8 +473,8 @@ leave one out predictions
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_var_after_adding_points"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_var_after_adding_points}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_var_after_adding_points"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_var_after_adding_points}{}}}
 \subsection{Method \code{pred_var_after_adding_points()}}{
 Predict variance after adding points
 \subsection{Usage}{
@@ -432,8 +492,8 @@ Predict variance after adding points
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_var_after_adding_points_sep"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_var_after_adding_points_sep}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_var_after_adding_points_sep"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_var_after_adding_points_sep}{}}}
 \subsection{Method \code{pred_var_after_adding_points_sep()}}{
 Predict variance reductions after adding each point separately
 \subsection{Usage}{
@@ -451,8 +511,8 @@ Predict variance reductions after adding each point separately
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_var_reduction"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_var_reduction}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_var_reduction"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_var_reduction}{}}}
 \subsection{Method \code{pred_var_reduction()}}{
 Predict variance reduction for a single point
 \subsection{Usage}{
@@ -470,8 +530,8 @@ Predict variance reduction for a single point
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-pred_var_reductions"></a>}}
-\if{latex}{\out{\hypertarget{method-pred_var_reductions}{}}}
+\if{html}{\out{<a id="method-GauPro-pred_var_reductions"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-pred_var_reductions}{}}}
 \subsection{Method \code{pred_var_reductions()}}{
 Predict variance reductions
 \subsection{Usage}{
@@ -489,8 +549,25 @@ Predict variance reductions
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-cool1Dplot"></a>}}
-\if{latex}{\out{\hypertarget{method-cool1Dplot}{}}}
+\if{html}{\out{<a id="method-GauPro-plot"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plot}{}}}
+\subsection{Method \code{plot()}}{
+Plot the object
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plot(...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{...}}{Parameters passed to cool1Dplot(), plot2D(), or plotmarginal()}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-cool1Dplot"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-cool1Dplot}{}}}
 \subsection{Method \code{cool1Dplot()}}{
 Make cool 1D plot
 \subsection{Usage}{
@@ -532,8 +609,8 @@ Make cool 1D plot
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-plot1D"></a>}}
-\if{latex}{\out{\hypertarget{method-plot1D}{}}}
+\if{html}{\out{<a id="method-GauPro-plot1D"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plot1D}{}}}
 \subsection{Method \code{plot1D()}}{
 Make 1D plot
 \subsection{Usage}{
@@ -541,6 +618,7 @@ Make 1D plot
   n2 = 20,
   nn = 201,
   col2 = 2,
+  col3 = 3,
   xlab = "x",
   ylab = "y",
   xmin = NULL,
@@ -557,7 +635,9 @@ Make 1D plot
 
 \item{\code{nn}}{Number of things to plot}
 
-\item{\code{col2}}{color}
+\item{\code{col2}}{Color of the prediction interval}
+
+\item{\code{col3}}{Color of the interval for the mean}
 
 \item{\code{xlab}}{x label}
 
@@ -575,8 +655,8 @@ Make 1D plot
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-plot2D"></a>}}
-\if{latex}{\out{\hypertarget{method-plot2D}{}}}
+\if{html}{\out{<a id="method-GauPro-plot2D"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plot2D}{}}}
 \subsection{Method \code{plot2D()}}{
 Make 2D plot
 \subsection{Usage}{
@@ -585,8 +665,72 @@ Make 2D plot
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-loglikelihood"></a>}}
-\if{latex}{\out{\hypertarget{method-loglikelihood}{}}}
+\if{html}{\out{<a id="method-GauPro-plotmarginal"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plotmarginal}{}}}
+\subsection{Method \code{plotmarginal()}}{
+Plot marginal. For each input, hold all others at a constant
+value and adjust it along it's range to see how the prediction changes.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotmarginal(pt = colMeans(self$X))}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{pt}}{What point to use as a center. All values except the one being
+plotted are held constant at this value.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-plotmarginalrandom"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plotmarginalrandom}{}}}
+\subsection{Method \code{plotmarginalrandom()}}{
+Plot marginal prediction for random sample of inputs
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotmarginalrandom(n = 151)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{n}}{Number of random points to evaluate}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-plotLOO"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plotLOO}{}}}
+\subsection{Method \code{plotLOO()}}{
+Plot leave one out predictions for design points
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotLOO()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-plot_track_optim"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plot_track_optim}{}}}
+\subsection{Method \code{plot_track_optim()}}{
+If track_optim, this will plot the parameters
+in the order they were evaluated.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plot_track_optim(minindex = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{minindex}}{Minimum index to plot.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-loglikelihood"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-loglikelihood}{}}}
 \subsection{Method \code{loglikelihood()}}{
 Calculate loglikelihood of parameters
 \subsection{Usage}{
@@ -604,8 +748,8 @@ Calculate loglikelihood of parameters
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_optim_functions"></a>}}
-\if{latex}{\out{\hypertarget{method-get_optim_functions}{}}}
+\if{html}{\out{<a id="method-GauPro-get_optim_functions"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-get_optim_functions}{}}}
 \subsection{Method \code{get_optim_functions()}}{
 Get optimization functions
 \subsection{Usage}{
@@ -623,8 +767,8 @@ Get optimization functions
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-param_optim_lower"></a>}}
-\if{latex}{\out{\hypertarget{method-param_optim_lower}{}}}
+\if{html}{\out{<a id="method-GauPro-param_optim_lower"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-param_optim_lower}{}}}
 \subsection{Method \code{param_optim_lower()}}{
 Lower bounds of parameters for optimization
 \subsection{Usage}{
@@ -640,8 +784,8 @@ Lower bounds of parameters for optimization
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-param_optim_upper"></a>}}
-\if{latex}{\out{\hypertarget{method-param_optim_upper}{}}}
+\if{html}{\out{<a id="method-GauPro-param_optim_upper"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-param_optim_upper}{}}}
 \subsection{Method \code{param_optim_upper()}}{
 Upper bounds of parameters for optimization
 \subsection{Usage}{
@@ -657,8 +801,8 @@ Upper bounds of parameters for optimization
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-param_optim_start"></a>}}
-\if{latex}{\out{\hypertarget{method-param_optim_start}{}}}
+\if{html}{\out{<a id="method-GauPro-param_optim_start"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-param_optim_start}{}}}
 \subsection{Method \code{param_optim_start()}}{
 Starting point for parameters for optimization
 \subsection{Usage}{
@@ -676,8 +820,8 @@ Starting point for parameters for optimization
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-param_optim_start0"></a>}}
-\if{latex}{\out{\hypertarget{method-param_optim_start0}{}}}
+\if{html}{\out{<a id="method-GauPro-param_optim_start0"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-param_optim_start0}{}}}
 \subsection{Method \code{param_optim_start0()}}{
 Starting point for parameters for optimization
 \subsection{Usage}{
@@ -695,8 +839,8 @@ Starting point for parameters for optimization
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-param_optim_start_mat"></a>}}
-\if{latex}{\out{\hypertarget{method-param_optim_start_mat}{}}}
+\if{html}{\out{<a id="method-GauPro-param_optim_start_mat"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-param_optim_start_mat}{}}}
 \subsection{Method \code{param_optim_start_mat()}}{
 Get matrix for starting points of optimization
 \subsection{Usage}{
@@ -716,13 +860,14 @@ Get matrix for starting points of optimization
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-optim"></a>}}
-\if{latex}{\out{\hypertarget{method-optim}{}}}
+\if{html}{\out{<a id="method-GauPro-optim"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-optim}{}}}
 \subsection{Method \code{optim()}}{
 Optimize parameters
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$optim(
-  restarts = 5,
+  restarts = self$restarts,
+  n0 = 5 * self$D,
   param_update = T,
   nug.update = self$nug.est,
   parallel = self$parallel,
@@ -734,6 +879,9 @@ Optimize parameters
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{restarts}}{Number of restarts to do}
+
+\item{\code{n0}}{This many starting parameters are chosen and evaluated.
+The best ones are used as the starting points for optimization.}
 
 \item{\code{param_update}}{Should parameters be updated?}
 
@@ -747,8 +895,8 @@ Optimize parameters
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-optimRestart"></a>}}
-\if{latex}{\out{\hypertarget{method-optimRestart}{}}}
+\if{html}{\out{<a id="method-GauPro-optimRestart"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-optimRestart}{}}}
 \subsection{Method \code{optimRestart()}}{
 Run a single optimization restart.
 \subsection{Usage}{
@@ -797,8 +945,8 @@ and its gradient.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update"></a>}}
-\if{latex}{\out{\hypertarget{method-update}{}}}
+\if{html}{\out{<a id="method-GauPro-update"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update}{}}}
 \subsection{Method \code{update()}}{
 Update the model. Should only give in
 (Xnew and Znew) or (Xall and Zall).
@@ -838,8 +986,8 @@ Update the model. Should only give in
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update_fast"></a>}}
-\if{latex}{\out{\hypertarget{method-update_fast}{}}}
+\if{html}{\out{<a id="method-GauPro-update_fast"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update_fast}{}}}
 \subsection{Method \code{update_fast()}}{
 Fast update when adding new data.
 \subsection{Usage}{
@@ -857,8 +1005,8 @@ Fast update when adding new data.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update_params"></a>}}
-\if{latex}{\out{\hypertarget{method-update_params}{}}}
+\if{html}{\out{<a id="method-GauPro-update_params"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update_params}{}}}
 \subsection{Method \code{update_params()}}{
 Update the parameters.
 \subsection{Usage}{
@@ -876,8 +1024,8 @@ Update the parameters.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update_data"></a>}}
-\if{latex}{\out{\hypertarget{method-update_data}{}}}
+\if{html}{\out{<a id="method-GauPro-update_data"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update_data}{}}}
 \subsection{Method \code{update_data()}}{
 Update the data. Should only give in
 (Xnew and Znew) or (Xall and Zall).
@@ -905,8 +1053,8 @@ Update the data. Should only give in
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update_corrparams"></a>}}
-\if{latex}{\out{\hypertarget{method-update_corrparams}{}}}
+\if{html}{\out{<a id="method-GauPro-update_corrparams"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update_corrparams}{}}}
 \subsection{Method \code{update_corrparams()}}{
 Update correlation parameters. Not the nugget.
 \subsection{Usage}{
@@ -922,8 +1070,8 @@ Update correlation parameters. Not the nugget.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-update_nugget"></a>}}
-\if{latex}{\out{\hypertarget{method-update_nugget}{}}}
+\if{html}{\out{<a id="method-GauPro-update_nugget"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-update_nugget}{}}}
 \subsection{Method \code{update_nugget()}}{
 Update nugget Not the correlation parameters.
 \subsection{Usage}{
@@ -939,8 +1087,8 @@ Update nugget Not the correlation parameters.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-deviance"></a>}}
-\if{latex}{\out{\hypertarget{method-deviance}{}}}
+\if{html}{\out{<a id="method-GauPro-deviance"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-deviance}{}}}
 \subsection{Method \code{deviance()}}{
 Calculate the deviance.
 \subsection{Usage}{
@@ -967,8 +1115,8 @@ Calculate the deviance.
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-deviance_grad"></a>}}
-\if{latex}{\out{\hypertarget{method-deviance_grad}{}}}
+\if{html}{\out{<a id="method-GauPro-deviance_grad"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-deviance_grad}{}}}
 \subsection{Method \code{deviance_grad()}}{
 Calculate the gradient of the deviance.
 \subsection{Usage}{
@@ -1010,8 +1158,8 @@ it's part of the gradient.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-deviance_fngr"></a>}}
-\if{latex}{\out{\hypertarget{method-deviance_fngr}{}}}
+\if{html}{\out{<a id="method-GauPro-deviance_fngr"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-deviance_fngr}{}}}
 \subsection{Method \code{deviance_fngr()}}{
 Calculate the deviance along with its gradient.
 \subsection{Usage}{
@@ -1053,8 +1201,8 @@ it's part of the gradient.}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad"></a>}}
-\if{latex}{\out{\hypertarget{method-grad}{}}}
+\if{html}{\out{<a id="method-GauPro-grad"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad}{}}}
 \subsection{Method \code{grad()}}{
 Calculate gradient
 \subsection{Usage}{
@@ -1074,8 +1222,8 @@ Calculate gradient
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad_norm"></a>}}
-\if{latex}{\out{\hypertarget{method-grad_norm}{}}}
+\if{html}{\out{<a id="method-GauPro-grad_norm"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad_norm}{}}}
 \subsection{Method \code{grad_norm()}}{
 Calculate norm of gradient
 \subsection{Usage}{
@@ -1091,8 +1239,8 @@ Calculate norm of gradient
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad_dist"></a>}}
-\if{latex}{\out{\hypertarget{method-grad_dist}{}}}
+\if{html}{\out{<a id="method-GauPro-grad_dist"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad_dist}{}}}
 \subsection{Method \code{grad_dist()}}{
 Calculate distribution of gradient
 \subsection{Usage}{
@@ -1108,8 +1256,8 @@ Calculate distribution of gradient
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad_sample"></a>}}
-\if{latex}{\out{\hypertarget{method-grad_sample}{}}}
+\if{html}{\out{<a id="method-GauPro-grad_sample"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad_sample}{}}}
 \subsection{Method \code{grad_sample()}}{
 Sample gradient at points
 \subsection{Usage}{
@@ -1127,8 +1275,8 @@ Sample gradient at points
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad_norm2_mean"></a>}}
-\if{latex}{\out{\hypertarget{method-grad_norm2_mean}{}}}
+\if{html}{\out{<a id="method-GauPro-grad_norm2_mean"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad_norm2_mean}{}}}
 \subsection{Method \code{grad_norm2_mean()}}{
 Calculate mean of gradient norm squared
 \subsection{Usage}{
@@ -1144,8 +1292,8 @@ Calculate mean of gradient norm squared
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad_norm2_dist"></a>}}
-\if{latex}{\out{\hypertarget{method-grad_norm2_dist}{}}}
+\if{html}{\out{<a id="method-GauPro-grad_norm2_dist"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad_norm2_dist}{}}}
 \subsection{Method \code{grad_norm2_dist()}}{
 Calculate distribution of gradient norm squared
 \subsection{Usage}{
@@ -1161,8 +1309,8 @@ Calculate distribution of gradient norm squared
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-grad_norm2_sample"></a>}}
-\if{latex}{\out{\hypertarget{method-grad_norm2_sample}{}}}
+\if{html}{\out{<a id="method-GauPro-grad_norm2_sample"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-grad_norm2_sample}{}}}
 \subsection{Method \code{grad_norm2_sample()}}{
 Get samples of squared norm of gradient
 \subsection{Usage}{
@@ -1180,8 +1328,8 @@ Get samples of squared norm of gradient
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-hessian"></a>}}
-\if{latex}{\out{\hypertarget{method-hessian}{}}}
+\if{html}{\out{<a id="method-GauPro-hessian"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-hessian}{}}}
 \subsection{Method \code{hessian()}}{
 Calculate Hessian
 \subsection{Usage}{
@@ -1199,8 +1347,8 @@ Calculate Hessian
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-sample"></a>}}
-\if{latex}{\out{\hypertarget{method-sample}{}}}
+\if{html}{\out{<a id="method-GauPro-sample"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-sample}{}}}
 \subsection{Method \code{sample()}}{
 Sample at rows of XX
 \subsection{Usage}{
@@ -1218,8 +1366,157 @@ Sample at rows of XX
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-print"></a>}}
-\if{latex}{\out{\hypertarget{method-print}{}}}
+\if{html}{\out{<a id="method-GauPro-EI"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-EI}{}}}
+\subsection{Method \code{EI()}}{
+Calculate expected improvement
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$EI(x, minimize = FALSE, eps = 0)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{Vector to calculate EI of, or matrix for whose rows it should
+be calculated}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{eps}}{Exploration parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-maxEI"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-maxEI}{}}}
+\subsection{Method \code{maxEI()}}{
+Find the point that maximizes the expected improvement
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxEI(
+  lower = apply(self$X, 2, min),
+  upper = apply(self$X, 2, max),
+  n0 = 100,
+  minimize = FALSE,
+  eps = 0,
+  discreteinputs = NULL
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{lower}}{Lower bounds to search within}
+
+\item{\code{upper}}{Upper bounds to search within}
+
+\item{\code{n0}}{Number of points to evaluate in initial stage}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{eps}}{Exploration parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-maxEIwithfactors"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-maxEIwithfactors}{}}}
+\subsection{Method \code{maxEIwithfactors()}}{
+Find the point that maximizes the expected improvement.
+Used whenever one of the inputs is a factor (can only take values 1:n).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxEIwithfactors(
+  lower = apply(self$X, 2, min),
+  upper = apply(self$X, 2, max),
+  n0 = 100,
+  minimize = FALSE,
+  eps = 0
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{lower}}{Lower bounds to search within}
+
+\item{\code{upper}}{Upper bounds to search within}
+
+\item{\code{n0}}{Number of points to evaluate in initial stage}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{eps}}{Exploration parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-maxEIwithfactorsordiscrete"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-maxEIwithfactorsordiscrete}{}}}
+\subsection{Method \code{maxEIwithfactorsordiscrete()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxEIwithfactorsordiscrete(
+  lower = apply(self$X, 2, min),
+  upper = apply(self$X, 2, max),
+  n0 = 100,
+  minimize = FALSE,
+  eps = 0,
+  discreteinputs = NULL
+)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-maxqEI"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-maxqEI}{}}}
+\subsection{Method \code{maxqEI()}}{
+Find the multiple points that maximize the expected
+improvement. Currently only implements the constant liar method.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxqEI(
+  npoints,
+  method = "CL",
+  lower = apply(self$X, 2, min),
+  upper = apply(self$X, 2, max),
+  n0 = 100,
+  minimize = FALSE,
+  eps = 0
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{npoints}}{Number of points to add}
+
+\item{\code{method}}{Method to use. Can only be "CL" for constant liar.}
+
+\item{\code{lower}}{Lower bounds to search within}
+
+\item{\code{upper}}{Upper bounds to search within}
+
+\item{\code{n0}}{Number of points to evaluate in initial stage}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{eps}}{Exploration parameter}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-KG"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-KG}{}}}
+\subsection{Method \code{KG()}}{
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$KG(x, minimize = FALSE, eps = 0, current_extreme = NULL)}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-print"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-print}{}}}
 \subsection{Method \code{print()}}{
 Print this object
 \subsection{Usage}{
@@ -1228,8 +1525,8 @@ Print this object
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-clone}{}}}
+\if{html}{\out{<a id="method-GauPro-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-clone}{}}}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{

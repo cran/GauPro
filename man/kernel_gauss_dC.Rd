@@ -2,7 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{kernel_gauss_dC}
 \alias{kernel_gauss_dC}
-\title{Correlation Gaussian matrix in C (symmetric)}
+\title{Derivative of Gaussian kernel covariance matrix in C}
 \usage{
 kernel_gauss_dC(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug)
 }
@@ -25,8 +25,5 @@ kernel_gauss_dC(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug)
 Correlation matrix
 }
 \description{
-Correlation Gaussian matrix in C (symmetric)
-}
-\examples{
-corr_gauss_matrix_symC(matrix(c(1,0,0,1),2,2),c(1,1))
+Derivative of Gaussian kernel covariance matrix in C
 }

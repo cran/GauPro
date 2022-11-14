@@ -48,7 +48,7 @@ White <- R6::R6Class(
     #' of x with itself.
     #' @param s2 Variance parameter.
     #' @param params parameters to use instead of beta and s2.
-    k = function(x, y=NULL, s2=self$s2, params=NULL) {#browser()
+    k = function(x, y=NULL, s2=self$s2, params=NULL) {
       if (!is.null(params)) {
         logs2 <- params #[lenpar]
         s2 <- 10^logs2
@@ -70,11 +70,13 @@ White <- R6::R6Class(
       } else if (is.matrix(x) & !is.matrix(y)) {
         # s2 * corr_gauss_matrixvecC(x, y, theta)
         # apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, alpha=alpha, s2=s2)})
-        matrix(0, nrow(x), 1)
+        # matrix(0, nrow(x), 1)
+        rep(0, nrow(x))
       } else if (is.matrix(y)) {
         # s2 * corr_gauss_matrixvecC(y, x, theta)
         # apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, alpha=alpha, s2=s2)})
-        matrix(0, 1, nrow(y))
+        # matrix(0, 1, nrow(y))
+        rep(0, nrow(y))
       } else {
         # self$kone(x, y, theta=theta, alpha=alpha, s2=s2)
         0
@@ -138,7 +140,7 @@ White <- R6::R6Class(
     #' @param theta Correlation parameters
     #' @param beta log of theta
     #' @param s2 Variance parameter
-    dC_dx = function(XX, X, s2=self$s2) {#browser()
+    dC_dx = function(XX, X, s2=self$s2) {
       if (!is.matrix(XX)) {stop()}
       d <- ncol(XX)
       if (ncol(X) != d) {stop()}
@@ -219,6 +221,12 @@ White <- R6::R6Class(
       } else { # Else it is just using set value, not being estimated
         self$s2
       }
+    },
+    #' @description Print this object
+    print = function() {
+      cat('GauPro kernel: White\n')
+      cat('\tD  =', self$D, '\n')
+      cat('\ts2 =', self$s2, '\n')
     }
   )
 )
