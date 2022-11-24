@@ -55,6 +55,55 @@ if (F) {
   }
 }
 
+#' Summary for GauPro object
+#'
+#' @param object GauPro R6 object
+#' @param ... Additional arguments passed to summary
+#'
+#' @return Summary
+#' @export
+summary.GauPro <- function(object, ...) {
+  object$summary(...)
+}
+
+#' Print summary.GauPro
+#'
+#' @param x summary.GauPro object
+#' @param ... Additional args
+#' @importFrom stats binom.test
+#'
+#' @return
+#' @export
+print.summary.GauPro <- function(x, ...) {
+  # Formula
+  cat("Formula:\n")
+  cat("\t", x$formula, "\n\n")
+
+  # Residuals
+  cat("Residuals:\n")
+  print(summary(x$residualsLOO))
+
+  # Importance
+  cat("\nFeature importance:\n")
+  print(x$importance)
+
+  # R-squared, Adj R-squared
+  cat("\nPseudo leave-one-out R-squared:\n")
+  cat("\t", x$r.squaredLOO, "\n")
+
+  # Coverage
+  # cat("\nLeave-one-out 95% coverage:\n")
+  # cat("\t", x$coverageLOO, "\t(on", x$N, "samples)", "\n")
+  pval68 <- binom.test(x$coverage68LOO*x$N, x$N, .68)$p.value
+  pval95 <- binom.test(x$coverage95LOO*x$N, x$N, .95)$p.value
+  cat("\nLeave-one-out coverage (on", x$N, "samples):\n")
+  cat("\t68%:  ", x$coverage68LOO, "\t\tp-value:  ", pval68, "\n")
+  cat("\t95%:  ", x$coverage95LOO, "\t\tp-value:  ", pval95, "\n")
+
+  # Return invisible self
+  invisible(x)
+}
+
 
 #' Kernel sum
 #'
@@ -70,6 +119,18 @@ if (F) {
 #' k <- k1 + k2
 #' k$k(matrix(c(2,1), ncol=1))
 '+.GauPro_kernel' <- function(k1, k2) {
+  if (is.numeric(k1) && k1==0) {
+    return(k2)
+  }
+  if (is.numeric(k2) && k2==0) {
+    return(k1)
+  }
+  if (!("GauPro_kernel" %in% class(k1))) {
+    stop("Can only add GauPro kernels with other kernels")
+  }
+  if (!("GauPro_kernel" %in% class(k2))) {
+    stop("Can only add GauPro kernels with other kernels")
+  }
   kernel_sum$new(k1=k1, k2=k2)
 }
 
@@ -88,5 +149,17 @@ if (F) {
 #' k <- k1 * k2
 #' k$k(matrix(c(2,1), ncol=1))
 '*.GauPro_kernel' <- function(k1, k2) {
+  if (is.numeric(k1) && k1==1) {
+    return(k2)
+  }
+  if (is.numeric(k2) && k2==1) {
+    return(k1)
+  }
+  if (!("GauPro_kernel" %in% class(k1))) {
+    stop("Can only multiply GauPro kernels with other kernels")
+  }
+  if (!("GauPro_kernel" %in% class(k2))) {
+    stop("Can only multiply GauPro kernels with other kernels")
+  }
   kernel_product$new(k1=k1, k2=k2)
 }

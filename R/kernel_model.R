@@ -161,6 +161,7 @@ GauPro_kernel_model <- R6::R6Class(
                           param.est = TRUE, restarts = 0,
                           normalize = FALSE, optimizer="L-BFGS-B",
                           track_optim=FALSE,
+                          formula, data,
                           ...) {
       #self$initialize_GauPr(X=X,Z=Z,verbose=verbose,useC=useC,
       #                      useGrad=useGrad,
@@ -171,25 +172,60 @@ GauPro_kernel_model <- R6::R6Class(
       # if (missing(Z)) {
       #   stop("You must give Z to GauPro_kernel_model")
       # }
-      if ((!missing(X) && is.formula(X)) || (!missing(Z) && is.formula(Z))) {
+      if ((!missing(X) && is.formula(X)) ||
+          (!missing(Z) && is.formula(Z)) ||
+          (!missing(formula) && is.formula(formula))) {
         if (!missing(X) && is.formula(X)) {
           formula <- X
-          # stopifnot(is.data.frame(Z))
           if (!missing(Z) && is.data.frame(Z)) {
             data <- Z
+          } else if (!missing(data) && is.data.frame(data)) {
+            # data <- data
+          } else if (!missing(Z)) {
+            warning("Z given in but not being used")
+            data <- NULL
+          } else if (!missing(data)) {
+            warning("data given in but not being used")
+            data <- NULL
           } else {
             data <- NULL
           }
         }
         if (!missing(Z) && is.formula(Z)) {
           formula <- Z
-          # stopifnot(is.data.frame(X))
+          # Don't need data given in, can be global variables
           if (!missing(X) && is.data.frame(X)) {
             data <- X
+          } else if (!missing(data) && is.data.frame(data)) {
+            # data <- data
+          } else if (!missing(X)) {
+            warning("X given in but not being used")
+            data <- NULL
+          } else if (!missing(data)) {
+            warning("data given in but not being used")
+            data <- NULL
           } else {
             data <- NULL
           }
         }
+
+        if (!missing(formula) && is.formula(formula)) {
+          # formula <- formula
+          # Find data now
+          if (!missing(X) && is.data.frame(X)) {
+            data <- X
+          } else if (!missing(Z) && is.data.frame(Z)) {
+            data <- Z
+          } else if (!missing(data) && is.data.frame(data)) {
+            # data <- data
+          } else {
+            stop("formula given in but not data")
+          }
+        } else if (!missing(formula) && !is.null(formula)) {
+          message("formula given in but not used")
+        }
+
+        # Get data
         modfr <- model.frame(formula = formula, data = data)
         Z <- modfr[,1]
         Xdf <- modfr[,2:ncol(modfr), drop=FALSE]
@@ -220,7 +256,16 @@ GauPro_kernel_model <- R6::R6Class(
                                })
           }
         }
-        self$formula <- formula
+        # Using formula won't convert z ~ . into z ~ a + b + ...,
+        #   but using terms from modfr will
+        # self$formula <- formula
+        self$formula <- attr(modfr, "terms")
+        # Don't allow formulas with interaction terms. Everything interacts.
+        if (any(grepl(":", attr(self$formula, "term.labels"), fixed=TRUE)) ||
+            any(grepl("*", attr(self$formula, "term.labels"), fixed=TRUE))) {
+          stop(paste0("Don't use a formula with * or :. ",
+                      "Interactions are all included."))
+        }
         # self$data <- data
         self$convert_formula_data <- convert_formula_data
         X <- as.matrix(Xdf)
@@ -277,34 +322,75 @@ GauPro_kernel_model <- R6::R6Class(
         self$kernel <- kernel$new(D=self$D)
       } else if ("GauPro_kernel" %in% class(kernel)) {
         # Otherwise it should already be a kernel
+        if (!is.na(kernel$D) && kernel$D != self$D) {
+          warning(paste0("Dimensions of data and kernel don't match,",
+                         " this seems like an error"))
+        }
         self$kernel <- kernel
       } else if(is.character(kernel) && length(kernel)==1) {
         kernel <- tolower(kernel)
-        if (kernel %in% c("gaussian", "gauss")) {
-          kernel <- Gaussian$new(D=self$D, useC=useC)
+        Dcts <- self$D - length(self$convert_formula_data$factors) -
+          length(self$convert_formula_data$chars)
+        if (Dcts < .5) {
+          kernel <- 1
+        } else if (kernel %in% c("gaussian", "gauss")) {
+          kernel <- Gaussian$new(D=Dcts, useC=useC)
         } else if (kernel %in% c("matern32", "m32", "matern3/2",
                                  "matern3_2")) {
-          kernel <- Matern32$new(D=self$D)
+          kernel <- Matern32$new(D=Dcts)
         } else if (kernel %in% c("matern52", "m52", "matern5/2",
                                  "matern5_2")) {
-          kernel <- Matern52$new(D=self$D)
+          kernel <- Matern52$new(D=Dcts)
         } else if (kernel %in% c("exp", "exponential",
                                  "m12", "matern12",
                                  "matern1/2", "matern1_2")) {
-          kernel <- Exponential$new(D=self$D)
+          kernel <- Exponential$new(D=Dcts)
         } else if (kernel %in% c("ratquad", "rationalquadratic", "rq")) {
-          kernel <- RatQuad$new(D=self$D)
+          kernel <- RatQuad$new(D=Dcts)
         } else if (kernel %in% c("powerexponential", "powexp", "pe")) {
-          kernel <- PowerExp$new(D=self$D)
+          kernel <- PowerExp$new(D=Dcts)
         } else {
           stop(paste0("Kernel given to GauPro_kernel_model (",
                       kernel, ") is not valid. ",
-                      "Consider using Gaussian or Matern52."))
+                      'Consider using "Gaussian" or "Matern52".'))
+        }
+
+        # Add factor kernels for factor/char dimensions
+        if (self$D - Dcts > .5) {
+          # kernel over cts needs to ignore these dims
+          if (Dcts > .5) {
+            igninds <- c(
+              unlist(sapply(self$convert_formula_data$factors, function(x) {x$index})),
+              unlist(sapply(self$convert_formula_data$chars, function(x) {x$index}))
+            )
+            kernel <- IgnoreIndsKernel$new(k=kernel,
+                                           ignoreinds=igninds)
+          }
+          for (i in seq_along(self$convert_formula_data$factors)) {
+            nlevels_i <- length(self$convert_formula_data$factors[[i]]$levels)
+            kernel_i <- LatentFactorKernel$new(
+              D=1,
+              xindex=self$convert_formula_data$factors[[i]]$index,
+              nlevels=nlevels_i,
+              latentdim= if (nlevels_i>=3) {2} else {1}
+            )
+            kernel <- kernel * kernel_i
+          }
+          for (i in seq_along(self$convert_formula_data$chars)) {
+            nlevels_i <- length(self$convert_formula_data$chars[[i]]$vals)
+            kernel_i <- LatentFactorKernel$new(
+              D=1,
+              xindex=self$convert_formula_data$chars[[i]]$index,
+              nlevels=nlevels_i,
+              latentdim= if (nlevels_i>=3) {2} else {1}
+            )
+            kernel <- kernel * kernel_i
+          }
         }
         self$kernel <- kernel
       } else {
         stop(paste0("Kernel given to GauPro_kernel_model is not valid. ",
-                    "Consider using Gaussian or Matern52."))
+                    'Consider using "Gaussian" or "Matern52".'))
       }
 
       # Set trend
@@ -395,7 +481,7 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param split_speed Should the matrix be split for faster predictions?
     #' @param mean_dist Should the error be for the distribution of the mean?
     pred = function(XX, se.fit=F, covmat=F, split_speed=F, mean_dist=FALSE) {
-      if (!is.null(self$formula)) {
+      if (!is.null(self$formula) && is.data.frame(XX)) {
         XX <- convert_X_with_formula(XX, self$convert_formula_data,
                                      self$formula)
       }
@@ -530,7 +616,7 @@ GauPro_kernel_model <- R6::R6Class(
         # se[s2>=0] <- sqrt(s2[s2>=0])
 
         if (any(s2 < 0)) {
-          min_s2 <- .Machine$double.eps
+          min_s2 <- max(.Machine$double.eps, self$s2_hat * self$nug)
           warning(paste0("Negative s2 predictions are being set to ",
                          min_s2, " (", sum(s2<0)," values).",
                          " covmat is not being altered."))
@@ -572,7 +658,7 @@ GauPro_kernel_model <- R6::R6Class(
       # #   NOT SURE I WANT THIS
       # se[s2>=0] <- sqrt(s2[s2>=0])
       if (any(s2 < 0)) {
-        min_s2 <- .Machine$double.eps
+        min_s2 <- max(.Machine$double.eps, self$s2_hat * self$nug)
         warning(paste0("Negative s2 predictions are being set to ",
                        min_s2, " (", sum(s2<0)," values)"))
         s2 <- pmax(s2, min_s2)
@@ -799,7 +885,7 @@ GauPro_kernel_model <- R6::R6Class(
         self$plot2D(...)
       } else {
         # stop("No plot method for higher than 2 dimension")
-        self$plotmarginal(...)
+        self$plotmarginalrandom(...)
       }
     },
     #' @description Make cool 1D plot
@@ -1014,18 +1100,24 @@ GauPro_kernel_model <- R6::R6Class(
         ggplot2::facet_wrap(.~i, scales = "free_x") +
         ggplot2::geom_line(ggplot2::aes(y=predupper), color="green") +
         ggplot2::geom_line(ggplot2::aes(y=predlower), color="green") +
-        ggplot2::geom_line(size=1) +
+        ggplot2::geom_line(linewidth=1) +
         ggplot2::ylab("Predicted Z (95% interval)") +
         ggplot2::xlab("x along dimension i")
     },
     #' @description Plot marginal prediction for random sample of inputs
     #' @param n Number of random points to evaluate
-    plotmarginalrandom = function(n=151) {
+    plotmarginalrandom = function(n=100) {
       # Plot marginal random averages
       # Get random matrix, scale to proper lower/upper
       X <- lhs::randomLHS(n=n, k=ncol(self$X))
       X2 <- sweep(X, 2, apply(self$X, 2, max) - apply(self$X, 2, min), "*")
       X3 <- sweep(X2, 2, apply(self$X, 2, min), "+")
+      if (is.null(colnames(self$X))) {
+        colnames(X3) <- paste0("X", 1:ncol(X3))
+      } else {
+        colnames(X3) <- colnames(self$X)
+      }
+      # Factor columns shouldn't interpolate
       factorinfo <- find_kernel_factor_dims(self$kernel)
       if (length(factorinfo) > 0) {
         for (i in 1:(length(factorinfo)/2)) {
@@ -1034,7 +1126,6 @@ GauPro_kernel_model <- R6::R6Class(
       }
       X3pred <- self$pred(X3, se.fit = T)
       X3pred$irow <- 1:nrow(X3pred)
-      # head(X3pred)
       X4 <- dplyr::inner_join(
         X3pred,
         tidyr::pivot_longer(cbind(as.data.frame(X3),irow=1:nrow(X)), cols=1:ncol(self$X)),
@@ -1046,7 +1137,7 @@ GauPro_kernel_model <- R6::R6Class(
         ggplot2::facet_wrap(.~name, scales="free_x") +
         # geom_point(aes(y=upper), color="green") +
         ggplot2::geom_segment(ggplot2::aes(y=upper, yend=lower, xend=value),
-                              color="green", size=2) +
+                              color="green", linewidth=2) +
         ggplot2::geom_point() +
         ggplot2::ylab("Predicted Z (95% interval)") +
         ggplot2::xlab("x along dimension i (other dims at random values)")
@@ -1069,14 +1160,15 @@ GauPro_kernel_model <- R6::R6Class(
       ggplot2::ggplot(loodf, ggplot2::aes(fit, Z)) +
         ggplot2::stat_smooth(method="loess", formula="y~x") +
         ggplot2::geom_abline(slope=1, intercept=0, color="red") +
-        ggplot2::geom_segment(ggplot2::aes(x=lower, xend=upper, yend=Z), color="green") +
+        ggplot2::geom_segment(ggplot2::aes(x=lower, xend=upper, yend=Z),
+                              color="green") +
         ggplot2::geom_point() +
         # geom_text(x=min(loodf$fit), y=max(loodf$Z), label="abc") +
         ggplot2::geom_text(x=-Inf, y=Inf,
-                           label=paste("Coverage:", signif(coverage,5)),
+                           label=paste("Coverage (95%):", signif(coverage,5)),
                            hjust=0, vjust=1) +
         ggplot2::geom_text(x=-Inf, y=Inf,
-                           label=paste("R-sq:        ", signif(rsq,5)),
+                           label=paste("R-sq:             ", signif(rsq,5)),
                            hjust=0, vjust=2.2) +
         # geom_text(x=Inf, y=-Inf, label="def", hjust=1, vjust=0)
         ggplot2::xlab("Predicted values (fit)") +
@@ -2339,19 +2431,38 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param n0 Number of points to evaluate in initial stage
     #' @param minimize Are you trying to minimize the output?
     #' @param eps Exploration parameter
+    #' @param mopar List of parameters using mixopt
+    #' @param dontconvertback If data was given in with a formula, should
+    #' it converted back to the original scale?
     maxEI = function(lower=apply(self$X, 2, min), upper=apply(self$X, 2, max),
                      n0=100, minimize=FALSE, eps=0,
-                     discreteinputs=NULL) {
+                     dontconvertback=FALSE,
+                     discreteinputs=NULL, mopar=NULL) {
       stopifnot(all(lower < upper))
       stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
       # Check if any kernels have factors
-      if (!is.null(discreteinputs) || length(find_kernel_factor_dims(self$kernel)) > 0) {
+      if (is.null(mopar) &&
+          (!is.null(discreteinputs) ||
+           length(find_kernel_factor_dims(self$kernel)) > 0)) {
         # Has at least one factor
         # return(self$maxEIwithfactors(lower=lower, upper=upper, n0=n0,
         #                              minimize=minimize, eps=eps))
         return(self$maxEIwithfactorsordiscrete(lower=lower, upper=upper, n0=n0,
                                                minimize=minimize, eps=eps,
-                                               discreteinputs=discreteinputs))
+                                               discreteinputs=discreteinputs,
+                                               dontconvertback=dontconvertback))
+      }
+      if (!is.null(mopar)) {
+        # Use mixopt, allows for factor/discrete/integer inputs
+        stopifnot(self$D == length(mopar))
+        moout <- mixopt::mixopt_multistart(
+          par=mopar,
+          fn=function(xx){-self$EI(unlist(xx), minimize = minimize)}
+        )
+        return(list(
+          par=unlist(moout$par),
+          value=-moout$val
+        ))
       }
       # Random points to evaluate to find best starting point
       X0 <- lhs::randomLHS(n=n0, k=ncol(self$X))
@@ -2501,6 +2612,7 @@ GauPro_kernel_model <- R6::R6Class(
     maxEIwithfactorsordiscrete = function(lower=apply(self$X, 2, min),
                                           upper=apply(self$X, 2, max),
                                           n0=100, minimize=FALSE, eps=0,
+                                          dontconvertback=FALSE,
                                           discreteinputs=NULL) {
       stopifnot(all(lower < upper))
       stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
@@ -2634,26 +2746,42 @@ GauPro_kernel_model <- R6::R6Class(
           if (newbestEI - bestEIsofar <= 1e-16) {
             # return(Xstart)
             # Return list, same format as DiceOptim::max_EI
-            return(
-              list(
-                par=Xstart,
-                value=newbestEI
-              )
-            )
+            # return(
+            #   list(
+            #     par=Xstart,
+            #     value=newbestEI
+            #   )
+            # )
+            notdone <- FALSE
           }
           # Or break if enough iterations
           if (i_while > 10) {
             # return(Xstart)
             # Return list, same format as DiceOptim::max_EI
-            return(
-              list(
-                par=Xstart,
-                value=newbestEI
-              )
-            )
+            # return(
+            #   list(
+            #     par=Xstart,
+            #     value=newbestEI
+            #   )
+            # )
+            notdone <- FALSE
           }
           bestEIsofar <- newbestEI
         }
+
+        # done
+        # Convert factor/char indexes back to level/value
+        if (!is.null(self$formula) && !dontconvertback) {
+          Xstart <- convert_X_with_formula_back(gpdf=self, x=Xstart)
+        }
+
+        # Return list, same format as DiceOptim::max_EI
+        return(
+          list(
+            par=Xstart,
+            value=newbestEI
+          )
+        )
 
       }
       # stopifnot(length(bestpar) == self$D)
@@ -2734,14 +2862,21 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param n0 Number of points to evaluate in initial stage
     #' @param minimize Are you trying to minimize the output?
     #' @param eps Exploration parameter
+    #' @param mopar List of parameters using mixopt
+    #' @param dontconvertback If data was given in with a formula, should
+    #' it converted back to the original scale?
     maxqEI = function(npoints, method="CL",
-                      lower=apply(self$X, 2, min), upper=apply(self$X, 2, max),
-                      n0=100, minimize=FALSE, eps=0) {
+                      lower=apply(self$X, 2, min),
+                      upper=apply(self$X, 2, max),
+                      n0=100, minimize=FALSE, eps=0,
+                      dontconvertback=FALSE,
+                      mopar=NULL) {
       stopifnot(is.numeric(npoints), length(npoints)==1, npoints >= 1)
       if (npoints==1) {
         # For single point, use proper function
         return(self$maxEI(lower=lower, upper=upper, n0=n0,
-                          minimize=minimize, eps=eps))
+                          minimize=minimize, eps=eps, mopar=mopar,
+                          dontconvertback=dontconvertback))
       }
       stopifnot(method %in% c("CL", "pred"))
       # Clone object since we will add fake data
@@ -2754,7 +2889,9 @@ GauPro_kernel_model <- R6::R6Class(
       Zimpute <- if (minimize) {min(Xmeanpred$mean)} else {max(Xmeanpred$mean)}
       for (i in 1:npoints) {
         # Find and store point that maximizes EI
-        maxEI_i <- gpclone$maxEI(lower=lower, upper=upper, n0=n0, eps=eps, minimize=minimize)
+        maxEI_i <- gpclone$maxEI(lower=lower, upper=upper, n0=n0, eps=eps,
+                                 minimize=minimize, mopar=mopar,
+                                 dontconvertback=TRUE)
         xi <- maxEI_i$par
         selectedX[i, ] <- xi
         if (method == "pred") {
@@ -2768,6 +2905,12 @@ GauPro_kernel_model <- R6::R6Class(
       # Return matrix of points
       # selectedX
 
+      # done
+      # Convert factor/char indexes back to level/value
+      if (!is.null(self$formula) && !dontconvertback) {
+        selectedX <- convert_X_with_formula_back(gpdf=self, x=selectedX)
+      }
+
       # Return list, same format as DiceOptim::max_EI
       return(
         list(
@@ -2776,6 +2919,11 @@ GauPro_kernel_model <- R6::R6Class(
         )
       )
     },
+    #' @description Calculate Knowledge Gradient
+    #' @param x Point to calculate at
+    #' @param minimize Is the objective to minimize?
+    #' @param eps Exploration parameter
+    #' @param current_extreme Used for recursive solving
     KG = function(x, minimize=FALSE, eps=0, current_extreme=NULL) {
       # if (exists('kgbrow') && kgbrow) {browser()}
       xkg <- x
@@ -2821,15 +2969,152 @@ GauPro_kernel_model <- R6::R6Class(
       kgs
       mean(kgs)
     },
+    #' @description Feature importance
+    #' @param plot Should the plot be made?
+    #' @references https://scikit-learn.org/stable/modules/permutation_importance.html#id2
+    importance = function(plot=TRUE) {
+      # variable importance
+      # Permutation alg
+      # https://scikit-learn.org/stable/modules/permutation_importance.html#id2
+      stopifnot(is.logical(plot), length(plot)==1)
+      nouter <- 5
+      # rmse if just predicting mean
+      rmse0 <- sqrt(mean((mean(self$Z) - self$Z)^2))
+      rmsemod <- sqrt(mean((predict(self, self$X) - self$Z)^2))
+
+      # Track in loop
+      rmses <- rep(0, self$D)
+      rsqs <- rep(0, self$D)
+
+      # Outer loop to repeat for stability
+      for (iouter in 1:nouter) {
+        # Loop over dimensions
+        for (i in 1:self$D) {
+          Xshuffle <- self$X
+          # Shuffle single column, corrupted data
+          Xshuffle[, i] <- sample(Xshuffle[, i], nrow(Xshuffle), replace=F)
+          # Predict on corrupted, get RMSE
+          predi <- self$pred(Xshuffle)
+          rmse <- sqrt(mean((predi - self$Z)^2))
+          rsq <- 1 - (sum((predi-self$Z)^2)) / (sum((mean(self$Z)-self$Z)^2))
+
+          rmses[i] <- rmses[i] + rmse
+          rsqs[i] <- rsqs[i] + rsq
+        }
+      }
+      rmses <- rmses / nouter
+      rsqs <- rsqs / nouter
+
+      if (!is.null(colnames(self$X))) {
+        names(rmses) <- colnames(self$X)
+      } else {
+        names(rmses) <- paste0("X", seq_along(rmses))
+      }
+
+      # I'm defining importance as this ratio.
+      # 0 means feature has no effect
+      # 1 or higher means that corrupting that feature completely destroys
+      #  model, it's worse than just predicting mean
+      # imp <- rmses / rmse0
+      imp <- (rmses - rmsemod) / (rmse0 - rmsemod)
+      imp
+
+      if (plot) {
+        ggp <- data.frame(name=factor(names(imp), levels = rev(names(imp))), val=imp) %>%
+          ggplot(aes(val, name)) +
+          geom_vline(xintercept=1) +
+          geom_bar(stat='identity', fill="blue") +
+          xlab("Importance") +
+          ylab("Variable")
+        print(ggp)
+      }
+
+      # Return importances
+      imp
+    },
     #' @description Print this object
     print = function() {
       cat("GauPro kernel model object\n")
+      if (!is.null(self$formula)) {
+        formchar <- as.character(self$formula)
+        stopifnot(length(formchar) == 3)
+        formchar2 <- paste(formchar[2], formchar[1], formchar[3])
+        cat("\tFormula:", formchar2, "\n")
+      }
       cat(paste0("\tD = ", self$D, ", N = ", self$N,"\n"))
       cat(paste0("\tNugget = ", signif(self$nug, 3), "\n"))
       cat("\tRun $update() to add data and/or optimize again\n")
       cat("\tUse $pred() to get predictions at new points\n")
       cat("\tUse $plot() to visualize the model\n")
       invisible(self)
+    },
+    #' @description Summary
+    #' @param ... Additional arguments
+    summary = function(...) {
+      # Just return summary of Z
+      # return(summary(self$Z[,1]))
+
+      # Follow example of summary.lm
+      ans <- list()
+      class(ans) <- c("summary.GauPro")
+
+      ans$D <- self$D
+      ans$N <- self$N
+
+      # Use LOO predictions
+      ploo <- self$pred_LOO(se.fit = T)
+      loodf <- cbind(ploo, Z=self$Z)
+      loodf$upper <- loodf$fit + 1.96 * loodf$se.fit
+      loodf$lower <- loodf$fit - 1.96 * loodf$se.fit
+      loodf$upper68 <- loodf$fit + 1.00 * loodf$se.fit
+      loodf$lower68 <- loodf$fit - 1.00 * loodf$se.fit
+      # LOO residuals
+      ans$residualsLOO <- c(ploo$fit - self$Z)
+      # Add LOO coverage, R-sq
+      coverage95vec <- with(loodf, upper >= Z & lower <= Z)
+      coverage95 <- mean(coverage95vec)
+      ans$coverage95LOO <- coverage95
+      coverage68vec <- with(loodf, upper68 >= Z & lower68 <= Z)
+      coverage68 <- mean(coverage68vec)
+      ans$coverage68LOO <- coverage68
+      rsq <- with(loodf, 1 - (sum((fit-Z)^2)) / (sum((mean(Z)-Z)^2)))
+      ans$r.squaredLOO <- rsq
+
+      # Feature importance
+      ans$importance <- self$importance(plot=FALSE)
+
+      # Formula
+      if (!is.null(self$formula)) {
+        formchar <- as.character(self$formula)
+        stopifnot(length(formchar) == 3)
+        formchar2 <- paste(formchar[2], formchar[1], formchar[3])
+        ans$formula <- formchar2
+      } else if (!is.null(colnames(self$X))) {
+        if (is.null(colnames(self$Z))) {
+          ans$formula <- "Z ~ "
+        } else {
+          ans$formula <- paste(colnames(self$Z)[1], " ~ ")
+        }
+        for (i in 1:self$D) {
+          if (i==1) {
+            ans$formula <- paste0(ans$formula, colnames(self$X)[i])
+          } else {
+            ans$formula <- paste0(ans$formula, " + ", colnames(self$X)[i])
+          }
+        }
+      } else {
+        # No colnames or formula
+        ans$formula <- "Z ~ "
+        for (i in 1:self$D) {
+          if (i==1) {
+            ans$formula <- paste0(ans$formula, " X", i)
+          } else {
+            ans$formula <- paste0(ans$formula, " + X", i)
+          }
+        }
+      }
+
+      ans
     }
   ),
   private = list(

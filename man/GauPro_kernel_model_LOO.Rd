@@ -65,6 +65,7 @@ gp <- GauPro_kernel_model_LOO$new(X=x, Z=y, kernel=Matern52)
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="grad_norm2_sample"><a href='../../GauPro/html/GauPro.html#method-GauPro-grad_norm2_sample'><code>GauPro::GauPro$grad_norm2_sample()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="grad_sample"><a href='../../GauPro/html/GauPro.html#method-GauPro-grad_sample'><code>GauPro::GauPro$grad_sample()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="hessian"><a href='../../GauPro/html/GauPro.html#method-GauPro-hessian'><code>GauPro::GauPro$hessian()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="importance"><a href='../../GauPro/html/GauPro.html#method-GauPro-importance'><code>GauPro::GauPro$importance()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="loglikelihood"><a href='../../GauPro/html/GauPro.html#method-GauPro-loglikelihood'><code>GauPro::GauPro$loglikelihood()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="maxEI"><a href='../../GauPro/html/GauPro.html#method-GauPro-maxEI'><code>GauPro::GauPro$maxEI()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="maxEIwithfactors"><a href='../../GauPro/html/GauPro.html#method-GauPro-maxEIwithfactors'><code>GauPro::GauPro$maxEIwithfactors()</code></a></span></li>
@@ -96,6 +97,7 @@ gp <- GauPro_kernel_model_LOO$new(X=x, Z=y, kernel=Matern52)
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="predict"><a href='../../GauPro/html/GauPro.html#method-GauPro-predict'><code>GauPro::GauPro$predict()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="print"><a href='../../GauPro/html/GauPro.html#method-GauPro-print'><code>GauPro::GauPro$print()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="sample"><a href='../../GauPro/html/GauPro.html#method-GauPro-sample'><code>GauPro::GauPro$sample()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="summary"><a href='../../GauPro/html/GauPro.html#method-GauPro-summary'><code>GauPro::GauPro$summary()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="update_K_and_estimates"><a href='../../GauPro/html/GauPro.html#method-GauPro-update_K_and_estimates'><code>GauPro::GauPro$update_K_and_estimates()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="update_corrparams"><a href='../../GauPro/html/GauPro.html#method-GauPro-update_corrparams'><code>GauPro::GauPro$update_corrparams()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="update_data"><a href='../../GauPro/html/GauPro.html#method-GauPro-update_data'><code>GauPro::GauPro$update_data()</code></a></span></li>
@@ -179,7 +181,8 @@ Predict for a matrix of points
   XX,
   se.fit = F,
   covmat = F,
-  return_df = FALSE
+  return_df = FALSE,
+  mean_dist = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -194,6 +197,8 @@ Predict for a matrix of points
 
 \item{\code{return_df}}{When returning se.fit, should it be returned in
 a data frame?}
+
+\item{\code{mean_dist}}{Should mean distribution be returned?}
 }
 \if{html}{\out{</div>}}
 }
