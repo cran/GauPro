@@ -55,6 +55,7 @@ kernel, such as for factors.}
 \item \href{#method-GauPro_kernel_IgnoreInds-kone}{\code{IgnoreIndsKernel$kone()}}
 \item \href{#method-GauPro_kernel_IgnoreInds-dC_dparams}{\code{IgnoreIndsKernel$dC_dparams()}}
 \item \href{#method-GauPro_kernel_IgnoreInds-C_dC_dparams}{\code{IgnoreIndsKernel$C_dC_dparams()}}
+\item \href{#method-GauPro_kernel_IgnoreInds-dC_dx}{\code{IgnoreIndsKernel$dC_dx()}}
 \item \href{#method-GauPro_kernel_IgnoreInds-param_optim_start}{\code{IgnoreIndsKernel$param_optim_start()}}
 \item \href{#method-GauPro_kernel_IgnoreInds-param_optim_start0}{\code{IgnoreIndsKernel$param_optim_start0()}}
 \item \href{#method-GauPro_kernel_IgnoreInds-param_optim_lower}{\code{IgnoreIndsKernel$param_optim_lower()}}
@@ -78,7 +79,7 @@ kernel, such as for factors.}
 \subsection{Method \code{new()}}{
 Initialize kernel object
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{IgnoreIndsKernel$new(k, ignoreinds)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{IgnoreIndsKernel$new(k, ignoreinds, useC = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -87,6 +88,8 @@ Initialize kernel object
 \item{\code{k}}{Kernel to use on the non-ignored indices}
 
 \item{\code{ignoreinds}}{Indices of columns of X to ignore.}
+
+\item{\code{useC}}{Should C code used? Not implemented for IgnoreInds.}
 }
 \if{html}{\out{</div>}}
 }
@@ -173,6 +176,27 @@ Calculate covariance matrix and its derivative
 \item{\code{X}}{matrix of points in rows}
 
 \item{\code{nug}}{Value of nugget}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro_kernel_IgnoreInds-dC_dx"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro_kernel_IgnoreInds-dC_dx}{}}}
+\subsection{Method \code{dC_dx()}}{
+Derivative of covariance with respect to X
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{IgnoreIndsKernel$dC_dx(XX, X, ...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{XX}}{matrix of points}
+
+\item{\code{X}}{matrix of points to take derivative with respect to}
+
+\item{\code{...}}{Additional arguments passed on to the kernel}
 }
 \if{html}{\out{</div>}}
 }

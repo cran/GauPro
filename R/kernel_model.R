@@ -1,7 +1,12 @@
-#' GauPro model that uses kernels
+#' Gaussian process model with kernel
 #'
+#' @description
 #' Class providing object with methods for fitting a GP model.
 #' Allows for different kernel and trend functions to be used.
+#' The object is an R6 object with many methods that can be called.
+#'
+#' `gpkm()` is equivalent to `GauPro_kernel_model$new()`, but is easier to type
+#' and gives parameter autocomplete suggestions.
 #'
 #' @docType class
 #' @importFrom R6 R6Class
@@ -17,8 +22,7 @@
 #' n <- 12
 #' x <- matrix(seq(0,1,length.out = n), ncol=1)
 #' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
-#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(1),
-#'                               parallel=FALSE)
+#' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel="gauss")
 #' gp$predict(.454)
 #' gp$plot1D()
 #' gp$cool1Dplot()
@@ -152,6 +156,8 @@ GauPro_kernel_model <- R6::R6Class(
     #' parameters.
     #' @param track_optim Should it track the parameters evaluated
     #' while optimizing?
+    #' @param formula Formula for the data if giving in a data frame.
+    #' @param data Data frame of data. Use in conjunction with formula.
     #' @param ... Not used
     initialize = function(X, Z,
                           kernel, trend,
@@ -163,15 +169,7 @@ GauPro_kernel_model <- R6::R6Class(
                           track_optim=FALSE,
                           formula, data,
                           ...) {
-      #self$initialize_GauPr(X=X,Z=Z,verbose=verbose,useC=useC,
-      #                      useGrad=useGrad,
-      #                      parallel=parallel, nug.est=nug.est)
-      # if (missing(X)) {
-      #   stop("You must give X to GauPro_kernel_model")
-      # }
-      # if (missing(Z)) {
-      #   stop("You must give Z to GauPro_kernel_model")
-      # }
+      # If formula is given, use it to get X and Z.
       if ((!missing(X) && is.formula(X)) ||
           (!missing(Z) && is.formula(Z)) ||
           (!missing(formula) && is.formula(formula))) {
@@ -219,7 +217,8 @@ GauPro_kernel_model <- R6::R6Class(
           } else if (!missing(data) && is.data.frame(data)) {
             # data <- data
           } else {
-            stop("formula given in but not data")
+            # stop("formula given in but not data")
+            # Data can be in global, don't give error for this.
           }
         } else if (!missing(formula) && !is.null(formula)) {
           message("formula given in but not used")
@@ -237,7 +236,8 @@ GauPro_kernel_model <- R6::R6Class(
             convert_formula_data$factors[[
               length(convert_formula_data$factors)+1
             ]] <- list(index=i,
-                       levels=levels(Xdf[[i]]))
+                       levels=levels(Xdf[[i]]),
+                       ordered=is.ordered(Xdf[, i]))
             Xdf[[i]] <- as.integer(Xdf[[i]])
           }
         }
@@ -269,7 +269,7 @@ GauPro_kernel_model <- R6::R6Class(
         # self$data <- data
         self$convert_formula_data <- convert_formula_data
         X <- as.matrix(Xdf)
-      }
+      } # End formula was given in
 
       if (missing(X) || is.null(X)) {
         stop("You must give X to GauPro_kernel_model")
@@ -278,10 +278,16 @@ GauPro_kernel_model <- R6::R6Class(
         stop("You must give Z to GauPro_kernel_model")
       }
 
+      # X is always a matrix. If data comes from data frame, it gets converted
+      # to numeric so it can be stored in a matrix.
       if (is.data.frame(X)) {
         X <- as.matrix(X)
       }
-      stopifnot(is.numeric(X))
+      # Make sure numeric, no NA/NaN
+      stopifnot(is.numeric(X), !any(is.na(X)),
+                !any(is.nan(X)), all(is.finite(X)))
+      stopifnot(is.numeric(Z), !any(is.na(Z)),
+                !any(is.nan(Z)), all(is.finite(Z)))
       self$X <- X
       self$Z <- matrix(Z, ncol=1)
       self$normalize <- normalize
@@ -301,6 +307,12 @@ GauPro_kernel_model <- R6::R6Class(
       self$N <- nrow(self$X)
       self$D <- ncol(self$X)
 
+      # Expected run time
+      expruntime <- (.0581 + .00394*self$N + .0230*self$D) ^ 3
+      if (expruntime > 5 && self$verbose >= 0) {
+        cat("Expected run time:", round(expruntime), "seconds\n")
+      }
+
       # Set kernel
       if (missing(kernel)) {
         # # Stop and give message
@@ -311,7 +323,7 @@ GauPro_kernel_model <- R6::R6Class(
         # ))
         # Set to matern52 by default
         kernel <- "matern52"
-        warning(paste0(
+        message(paste0(
           "Argument 'kernel' is missing. ",
           "It has been set to 'matern52'.",
           " See documentation for more details."
@@ -337,18 +349,25 @@ GauPro_kernel_model <- R6::R6Class(
           kernel <- Gaussian$new(D=Dcts, useC=useC)
         } else if (kernel %in% c("matern32", "m32", "matern3/2",
                                  "matern3_2")) {
-          kernel <- Matern32$new(D=Dcts)
+          kernel <- Matern32$new(D=Dcts, useC=useC)
         } else if (kernel %in% c("matern52", "m52", "matern5/2",
                                  "matern5_2")) {
-          kernel <- Matern52$new(D=Dcts)
+          kernel <- Matern52$new(D=Dcts, useC=useC)
         } else if (kernel %in% c("exp", "exponential",
                                  "m12", "matern12",
                                  "matern1/2", "matern1_2")) {
-          kernel <- Exponential$new(D=Dcts)
+          kernel <- Exponential$new(D=Dcts, useC=useC)
         } else if (kernel %in% c("ratquad", "rationalquadratic", "rq")) {
-          kernel <- RatQuad$new(D=Dcts)
-        } else if (kernel %in% c("powerexponential", "powexp", "pe")) {
-          kernel <- PowerExp$new(D=Dcts)
+          kernel <- RatQuad$new(D=Dcts, useC=useC)
+        } else if (kernel %in% c("powerexponential", "powexp", "pe",
+                                 "powerexp")) {
+          kernel <- PowerExp$new(D=Dcts, useC=useC)
+        } else if (kernel %in% c("triangle", "tri")) {
+          kernel <- Triangle$new(D=Dcts, useC=useC)
+        } else if (kernel %in% c("periodic", "period", "per")) {
+          kernel <- Periodic$new(D=Dcts, useC=useC)
+        } else if (kernel %in% c("cubic", "cube", "cub")) {
+          kernel <- Cubic$new(D=Dcts, useC=useC)
         } else {
           stop(paste0("Kernel given to GauPro_kernel_model (",
                       kernel, ") is not valid. ",
@@ -360,20 +379,31 @@ GauPro_kernel_model <- R6::R6Class(
           # kernel over cts needs to ignore these dims
           if (Dcts > .5) {
             igninds <- c(
-              unlist(sapply(self$convert_formula_data$factors, function(x) {x$index})),
-              unlist(sapply(self$convert_formula_data$chars, function(x) {x$index}))
+              unlist(sapply(self$convert_formula_data$factors,
+                            function(x) {x$index})),
+              unlist(sapply(self$convert_formula_data$chars,
+                            function(x) {x$index}))
             )
             kernel <- IgnoreIndsKernel$new(k=kernel,
                                            ignoreinds=igninds)
           }
           for (i in seq_along(self$convert_formula_data$factors)) {
             nlevels_i <- length(self$convert_formula_data$factors[[i]]$levels)
-            kernel_i <- LatentFactorKernel$new(
-              D=1,
-              xindex=self$convert_formula_data$factors[[i]]$index,
-              nlevels=nlevels_i,
-              latentdim= if (nlevels_i>=3) {2} else {1}
-            )
+            if (self$convert_formula_data$factors[[i]]$ordered) {
+              kernel_i <- OrderedFactorKernel$new(
+                D=1,
+                xindex=self$convert_formula_data$factors[[i]]$index,
+                nlevels=nlevels_i, useC=useC
+              )
+            } else {
+              kernel_i <- LatentFactorKernel$new(
+                D=1,
+                xindex=self$convert_formula_data$factors[[i]]$index,
+                nlevels=nlevels_i,
+                latentdim= if (nlevels_i>=3) {2} else {1},
+                useC=useC
+              )
+            }
             kernel <- kernel * kernel_i
           }
           for (i in seq_along(self$convert_formula_data$chars)) {
@@ -382,7 +412,8 @@ GauPro_kernel_model <- R6::R6Class(
               D=1,
               xindex=self$convert_formula_data$chars[[i]]$index,
               nlevels=nlevels_i,
-              latentdim= if (nlevels_i>=3) {2} else {1}
+              latentdim= if (nlevels_i>=3) {2} else {1},
+              useC=useC
             )
             kernel <- kernel * kernel_i
           }
@@ -391,6 +422,24 @@ GauPro_kernel_model <- R6::R6Class(
       } else {
         stop(paste0("Kernel given to GauPro_kernel_model is not valid. ",
                     'Consider using "Gaussian" or "Matern52".'))
+      }
+
+      # Check that kernel is valid
+      ctsinds <- find_kernel_cts_dims(self$kernel)
+      facinds <- find_kernel_factor_dims(self$kernel)
+      if (length(facinds) > .5) {
+        facinds <- facinds[seq(1, length(facinds), 2)]
+      }
+      cts_and_fac <- intersect(ctsinds, facinds)
+      if (length(cts_and_fac) > .5) {
+        stop(paste0(c("Invalid kernel: index", cts_and_fac,
+                      " appear in both continuous and factor kernels"),
+                    collapse = ' '))
+      }
+      if (anyDuplicated(facinds) > .5) {
+        stop(paste0(c("Invalid kernel: index", facinds[anyDuplicated(facinds)],
+                      " appears in multiple factor kernels"),
+                    collapse = ' '))
       }
 
       # Set trend
@@ -402,6 +451,7 @@ GauPro_kernel_model <- R6::R6Class(
         self$trend <- trend$new(D=self$D)
       }
 
+      stopifnot(nug.min <= nug.max)
       self$nug <- min(max(nug, nug.min), nug.max)
       self$nug.min <- nug.min
       self$nug.max <- nug.max
@@ -429,7 +479,6 @@ GauPro_kernel_model <- R6::R6Class(
       self$track_optim <- track_optim
 
       self$update_K_and_estimates() # Need to get mu_hat before starting
-      # self$mu_hat <- mean(Z)
       self$fit()
       invisible(self)
     },
@@ -454,7 +503,8 @@ GauPro_kernel_model <- R6::R6Class(
         self$nug <- max(1e-8, 2 * self$nug)
         self$K <- self$K + diag(self$kernel$s2 * (self$nug - oldnug),
                                 self$N)
-        cat("Increasing nugget to get invertibility from ", oldnug, ' to ', self$nug, "\n")
+        cat("Increasing nugget to get invertibility from ", oldnug, ' to ',
+            self$nug, "\n")
       }
       self$Kinv <- chol2inv(self$Kchol)
       # self$mu_hat <- sum(self$Kinv %*% self$Z) / sum(self$Kinv)
@@ -470,9 +520,13 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param covmat Should covariance matrix be returned?
     #' @param split_speed Should the matrix be split for faster predictions?
     #' @param mean_dist Should the error be for the distribution of the mean?
-    predict = function(XX, se.fit=F, covmat=F, split_speed=F, mean_dist=FALSE) {
+    #' @param return_df When returning se.fit, should it be returned in
+    #' a data frame? Otherwise it will be a list, which is faster.
+    predict = function(XX, se.fit=F, covmat=F, split_speed=F, mean_dist=FALSE,
+                       return_df=TRUE) {
       self$pred(XX=XX, se.fit=se.fit, covmat=covmat,
-                split_speed=split_speed, mean_dist=mean_dist)
+                split_speed=split_speed, mean_dist=mean_dist,
+                return_df=return_df)
     },
     #' @description Predict for a matrix of points
     #' @param XX points to predict at
@@ -480,7 +534,10 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param covmat Should covariance matrix be returned?
     #' @param split_speed Should the matrix be split for faster predictions?
     #' @param mean_dist Should the error be for the distribution of the mean?
-    pred = function(XX, se.fit=F, covmat=F, split_speed=F, mean_dist=FALSE) {
+    #' @param return_df When returning se.fit, should it be returned in
+    #' a data frame? Otherwise it will be a list, which is faster.
+    pred = function(XX, se.fit=F, covmat=F, split_speed=F, mean_dist=FALSE,
+                    return_df=TRUE) {
       if (!is.null(self$formula) && is.data.frame(XX)) {
         XX <- convert_X_with_formula(XX, self$convert_formula_data,
                                      self$formula)
@@ -521,7 +578,8 @@ GauPro_kernel_model <- R6::R6Class(
           # kxxj <- self$corr_func(XXj)
           # kx.xxj <- self$corr_func(self$X, XXj)
           predj <- self$pred_one_matrix(XX=XXj, se.fit=se.fit,
-                                        covmat=covmat, mean_dist=mean_dist)
+                                        covmat=covmat, mean_dist=mean_dist,
+                                        return_df=return_df)
           #mn[(j*ni+1):(min((j+1)*ni,N))] <- pred_meanC(XXj, kx.xxj,
           #                                self$mu_hat, self$Kinv, self$Z)
           if (!se.fit) { # if no se.fit, just set vector
@@ -553,11 +611,11 @@ GauPro_kernel_model <- R6::R6Class(
         } else {
           return(data.frame(mean=mn, s2=s2, se=se))
         }
-
-      } else {
+      } else { # Not splitting, just do it all at once
         pred1 <- self$pred_one_matrix(XX=XX, se.fit=se.fit,
-                                      covmat=covmat, return_df=TRUE,
-                                      mean_dist=mean_dist)
+                                      covmat=covmat,
+                                      mean_dist=mean_dist,
+                                      return_df=return_df)
         return(pred1)
       }
     },
@@ -566,7 +624,7 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param se.fit Should standard error be returned?
     #' @param covmat Should covariance matrix be returned?
     #' @param return_df When returning se.fit, should it be returned in
-    #' a data frame?
+    #' a data frame? Otherwise it will be a list, which is faster.
     #' @param mean_dist Should the error be for the distribution of the mean?
     pred_one_matrix = function(XX, se.fit=F, covmat=F, return_df=FALSE,
                                mean_dist=FALSE) {
@@ -616,9 +674,14 @@ GauPro_kernel_model <- R6::R6Class(
         # se[s2>=0] <- sqrt(s2[s2>=0])
 
         if (any(s2 < 0)) {
-          min_s2 <- max(.Machine$double.eps, self$s2_hat * self$nug)
+          if (mean_dist) { # mean can have zero s2
+            min_s2 <- 0
+          } else { # pred var should always be at least this big
+            min_s2 <- max(.Machine$double.eps, self$s2_hat * self$nug *
+                            if (self$normalize) {self$normalize_sd} else {1})
+          }
           warning(paste0("Negative s2 predictions are being set to ",
-                         min_s2, " (", sum(s2<0)," values).",
+                         min_s2, " (", sum(s2<0)," values, min=", min(s2),").",
                          " covmat is not being altered."))
           s2 <- pmax(s2, min_s2)
         }
@@ -658,9 +721,14 @@ GauPro_kernel_model <- R6::R6Class(
       # #   NOT SURE I WANT THIS
       # se[s2>=0] <- sqrt(s2[s2>=0])
       if (any(s2 < 0)) {
-        min_s2 <- max(.Machine$double.eps, self$s2_hat * self$nug)
+        if (mean_dist) { # mean can have zero s2
+          min_s2 <- 0
+        } else { # pred var should always be at least this big
+          min_s2 <- max(.Machine$double.eps, self$s2_hat * self$nug *
+                          if (self$normalize) {self$normalize_sd} else {1})
+        }
         warning(paste0("Negative s2 predictions are being set to ",
-                       min_s2, " (", sum(s2<0)," values)"))
+                       min_s2, " (", sum(s2<0)," values, min=", min(s2),")"))
         s2 <- pmax(s2, min_s2)
       }
       se <- sqrt(s2)
@@ -733,9 +801,18 @@ GauPro_kernel_model <- R6::R6Class(
           Z_LOO_s2[i] <- Zi_LOO_s2
         }
       }
+      if (self$normalize) {
+        Z_LOO <- Z_LOO * self$normalize_sd + self$normalize_mean
+        if (se.fit) {
+          Z_LOO_s2 <- Z_LOO_s2 * self$normalize_sd ^ 2
+        }
+      }
       if (se.fit) { # Return df with se and t if se.fit
         Z_LOO_se <- sqrt(Z_LOO_s2)
-        t_LOO <- (self$Z - Z_LOO) / Z_LOO_se
+        Zref <- if (self$normalize) {
+          self$Z * self$normalize_sd + self$normalize_mean
+        } else {self$Z}
+        t_LOO <- (Zref - Z_LOO) / Z_LOO_se
         data.frame(fit=Z_LOO, se.fit=Z_LOO_se, t=t_LOO)
       } else { # Else just mean LOO
         Z_LOO
@@ -898,12 +975,18 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param xmax xmax
     #' @param ymax ymax
     #' @param ymin ymin
-    cool1Dplot = function (n2=20, nn=201, col2="gray",
+    #' @param gg Should ggplot2 be used to make plot?
+    cool1Dplot = function (n2=20, nn=201, col2="green",
                            xlab='x', ylab='y',
                            xmin=NULL, xmax=NULL,
-                           ymin=NULL, ymax=NULL
+                           ymin=NULL, ymax=NULL,
+                           gg=TRUE
     ) {
       if (self$D != 1) stop('Must be 1D')
+      if (length(find_kernel_factor_dims(self$kernel)) > 0) {
+        message("cool1Dplot doesn't work for factor input, using plot1D instead")
+        return(self$plot1D())
+      }
       # Letting user pass in minx and maxx
       if (is.null(xmin)) {
         minx <- min(self$X)
@@ -928,8 +1011,10 @@ GauPro_kernel_model <- R6::R6Class(
                                              Sigma=px$cov),
                        silent = TRUE)
       nug_Sig <- 1e-8 # self$nug, now use 1e-8 since self$nug is excluded in pred.
+      haderror <- FALSE
       while (inherits(Sigma.try, "try-error")) {
-        message(paste0("Adding nugget to cool1Dplot: ", nug_Sig))
+        haderror <- TRUE
+        # message(paste0("Adding nugget to cool1Dplot: ", nug_Sig))
         Sigma.try <- try(
           newy <- MASS::mvrnorm(n=n2, mu=px$mean,
                                 Sigma=px$cov + diag(nug_Sig, nrow(px$cov))),
@@ -938,6 +1023,9 @@ GauPro_kernel_model <- R6::R6Class(
         #   stop("Can't do cool1Dplot")
         # }
         nug_Sig <- 2*nug_Sig
+      }
+      if (haderror) {
+        message(paste0("Adding variance to cool1Dplot: ", nug_Sig))
       }
       if (n2==1) { # Avoid error when n2=1
         newy <- matrix(newy, nrow=1)
@@ -959,23 +1047,40 @@ GauPro_kernel_model <- R6::R6Class(
         maxy <- ymax
       }
 
-      # Redo to put gray lines on bottom
-      for (i in 1:n2) {
-        if (i == 1) {
-          plot(x, newy[i,], type='l', col=col2,
-               # ylim=c(min(newy),max(newy)),
-               ylim=c(miny,maxy),
-               xlab=xlab, ylab=ylab)
-        } else {
-          points(x, newy[i,], type='l', col=col2)
+      if (gg) {
+        xdf <- as.data.frame(cbind(x=x, newy=t(newy)))
+        xdf2 <- tidyr::pivot_longer(xdf, 1 + 1:n2)
+        # xdf2 %>% str
+        ggplot2::ggplot() +
+          ggplot2::geom_line(data=xdf2,
+                             ggplot2::aes(x, value, group=name),
+                             alpha=1, color=col2) +
+          ggplot2::geom_line(ggplot2::aes(x, px$mean), linewidth=2) +
+          ggplot2::geom_point(ggplot2::aes(self$X, if (self$normalize) {
+            self$Z * self$normalize_sd + self$normalize_mean
+          } else {self$Z}),
+          size=4, pch=21, color='white', fill='black', stroke=1) +
+          ggplot2::xlab(NULL) +
+          ggplot2::ylab(NULL)
+      } else {
+        # Redo to put gray lines on bottom
+        for (i in 1:n2) {
+          if (i == 1) {
+            plot(x, newy[i,], type='l', col=col2,
+                 # ylim=c(min(newy),max(newy)),
+                 ylim=c(miny,maxy),
+                 xlab=xlab, ylab=ylab)
+          } else {
+            points(x, newy[i,], type='l', col=col2)
+          }
         }
+        points(x,px$me, type='l', lwd=4)
+        points(self$X,
+               if (self$normalize) {
+                 self$Z * self$normalize_sd + self$normalize_mean
+               } else {self$Z},
+               pch=19, col=1, cex=2)
       }
-      points(x,px$me, type='l', lwd=4)
-      points(self$X,
-             if (self$normalize) {
-               self$Z * self$normalize_sd + self$normalize_mean
-             } else {self$Z},
-             pch=19, col=1, cex=2)
     },
     #' @description Make 1D plot
     #' @param n2 Number of things to plot
@@ -988,107 +1093,217 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param xmax xmax
     #' @param ymax ymax
     #' @param ymin ymin
+    #' @param gg Should ggplot2 be used to make plot?
     plot1D = function(n2=20, nn=201, col2=2, col3=3, #"gray",
                       xlab='x', ylab='y',
                       xmin=NULL, xmax=NULL,
-                      ymin=NULL, ymax=NULL) {
+                      ymin=NULL, ymax=NULL,
+                      gg=TRUE) {
       if (self$D != 1) stop('Must be 1D')
-      # Letting user pass in minx and maxx
-      if (is.null(xmin)) {
-        minx <- min(self$X)
-      } else {
-        minx <- xmin
-      }
-      if (is.null(xmax)) {
-        maxx <- max(self$X)
-      } else {
-        maxx <- xmax
-      }
-      # minx <- min(self$X)
-      # maxx <- max(self$X)
-      x1 <- minx - .1 * (maxx - minx)
-      x2 <- maxx + .1 * (maxx - minx)
-      # nn <- 201
-      x <- seq(x1, x2, length.out = nn)
-      px <- self$pred(x, se=T)
-      pxmean <- self$pred(x, se=T, mean_dist=T)
-      # n2 <- 20
 
-      # Setting ylim, giving user option
-      if (is.null(ymin)) {
-        miny <- min(px$mean - 2*px$se)
-      } else {
-        miny <- ymin
-      }
-      if (is.null(ymax)) {
-        maxy <- max(px$mean + 2*px$se)
-      } else {
-        maxy <- ymax
-      }
+      if (length(find_kernel_factor_dims(self$kernel)) > 0) {
+        # Factor input
+        fd <- find_kernel_factor_dims(self$kernel)
+        df <- data.frame(x=1:fd[2])
+        pred <- self$pred(df$x, se=T)
+        predmean <- self$pred(df$x, se=T, mean_dist = T)
+        df2 <- data.frame(
+          x=df$x,
+          pred=pred$mean,
+          predse=pred$se,
+          meanpred=predmean$mean,
+          meanpredse=predmean$se
+        )
+        df2
+        ggplot2::ggplot(df2, ggplot2::aes(x=x, xend=x)) +
+          ggplot2::geom_segment(ggplot2::aes(y=pred+2*predse,
+                                             yend=pred-2*predse),
+                                color="red", linewidth=4) +
+          ggplot2::geom_segment(ggplot2::aes(y=meanpred+2*meanpredse,
+                                             yend=meanpred-2*meanpredse),
+                                color="green", linewidth=6) +
+          ggplot2::geom_jitter(ggplot2::aes(x,y),
+                               data=data.frame(x=c(self$X), y=c(self$Z)),
+                               width=.1, height=0, size=2) +
+          ggplot2::ylab(NULL)
+      } else { # Cts input
+        # Letting user pass in minx and maxx
+        if (is.null(xmin)) {
+          minx <- min(self$X)
+        } else {
+          minx <- xmin
+        }
+        if (is.null(xmax)) {
+          maxx <- max(self$X)
+        } else {
+          maxx <- xmax
+        }
+        # minx <- min(self$X)
+        # maxx <- max(self$X)
+        x1 <- minx - .1 * (maxx - minx)
+        x2 <- maxx + .1 * (maxx - minx)
+        # nn <- 201
+        x <- seq(x1, x2, length.out = nn)
+        px <- self$pred(x, se=T)
+        pxmean <- self$pred(x, se=T, mean_dist=T)
+        # n2 <- 20
 
-      plot(x, px$mean+2*px$se, type='l', col=col2, lwd=2,
-           # ylim=c(min(newy),max(newy)),
-           ylim=c(miny,maxy),
-           xlab=xlab, ylab=ylab,
-           main=paste0("Predicted output (95% interval for mean is green,",
-                       " 95% interval for sample is red)"))
-      points(x, px$mean-2*px$se, type='l', col=col2, lwd=2)
-      points(x, pxmean$mean+2*pxmean$se, type='l', col=col3, lwd=2)
-      points(x, pxmean$mean-2*pxmean$se, type='l', col=col3, lwd=2)
-      points(x,px$me, type='l', lwd=4)
-      points(self$X,
-             if (self$normalize) {
-               self$Z * self$normalize_sd + self$normalize_mean
-             } else {self$Z},
-             pch=19, col=1, cex=2)
+        # Setting ylim, giving user option
+        if (is.null(ymin)) {
+          miny <- min(px$mean - 2*px$se)
+        } else {
+          miny <- ymin
+        }
+        if (is.null(ymax)) {
+          maxy <- max(px$mean + 2*px$se)
+        } else {
+          maxy <- ymax
+        }
+
+        if (gg) {
+          ggplot2::ggplot(px, ggplot2::aes(x, mean)) +
+            ggplot2::geom_line(data=pxmean, ggplot2::aes(y=mean+2*se),
+                               color="green", linewidth=2) +
+            ggplot2::geom_line(data=pxmean, ggplot2::aes(y=mean-2*se),
+                               color="green", linewidth=2) +
+            ggplot2::geom_line(ggplot2::aes(y=mean+2*se),
+                               color="red", linewidth=2) +
+            ggplot2::geom_line(ggplot2::aes(y=mean-2*se),
+                               color="red", linewidth=2) +
+            ggplot2::geom_line(linewidth=2) +
+            ggplot2::geom_point(data=data.frame(
+              x=unname(self$X),
+              y=if (self$normalize) {
+                self$Z * self$normalize_sd + self$normalize_mean
+              } else {self$Z}),
+              ggplot2::aes(x,y),
+              size=4,
+              # Make points have a border
+              color="gray", fill="black", pch=21
+            ) +
+            ggplot2::ylab(NULL) +
+            ggplot2::xlab(if (is.null(colnames(self$X))) {"X"} else {
+              colnames(self$X)})
+        } else {
+          plot(x, px$mean+2*px$se, type='l', col=col2, lwd=2,
+               # ylim=c(min(newy),max(newy)),
+               ylim=c(miny,maxy),
+               xlab=xlab, ylab=ylab,
+               # main=paste0("Predicted output (95% interval for mean is green,",
+               #             " 95% interval for sample is red)")
+          )
+          legend(x='topleft',
+                 legend=c('95% prediction','95% mean'),
+                 fill=2:3)
+          # Mean interval
+          points(x, pxmean$mean+2*pxmean$se, type='l', col=col3, lwd=2)
+          points(x, pxmean$mean-2*pxmean$se, type='l', col=col3, lwd=2)
+          # Prediction interval
+          points(x, px$mean+2*px$se, type='l', col=col2, lwd=2)
+          points(x, px$mean-2*px$se, type='l', col=col2, lwd=2)
+          # Mean line
+          points(x,px$me, type='l', lwd=4)
+          # Data points
+          points(self$X,
+                 if (self$normalize) {
+                   self$Z * self$normalize_sd + self$normalize_mean
+                 } else {self$Z},
+                 pch=19, col=1, cex=2)
+        }
+      }
     },
     #' @description Make 2D plot
-    plot2D = function() {
+    #' @param mean Should the mean be plotted?
+    #' @param se Should the standard error of prediction be plotted?
+    #' @param horizontal If plotting mean and se, should they be next to each
+    #' other?
+    #' @param n Number of points along each dimension
+    plot2D = function(se=FALSE, mean=TRUE, horizontal=TRUE, n=50) {
       if (self$D != 2) {stop("plot2D only works in 2D")}
+      stopifnot(is.logical(se), length(se)==1)
+      stopifnot(is.logical(mean), length(mean)==1)
+      stopifnot(is.logical(horizontal), length(horizontal)==1)
+      stopifnot(mean || se)
       mins <- apply(self$X, 2, min)
       maxs <- apply(self$X, 2, max)
       xmin <- mins[1] - .03 * (maxs[1] - mins[1])
       xmax <- maxs[1] + .03 * (maxs[1] - mins[1])
       ymin <- mins[2] - .03 * (maxs[2] - mins[2])
       ymax <- maxs[2] + .03 * (maxs[2] - mins[2])
-      ContourFunctions::cf_func(self$predict, batchmax=Inf,
-                                xlim=c(xmin, xmax),
-                                ylim=c(ymin, ymax),
-                                pts=self$X,
-                                gg=TRUE)
+      if (mean) {
+        plotmean <- ContourFunctions::cf_func(self$predict, batchmax=Inf,
+                                              xlim=c(xmin, xmax),
+                                              ylim=c(ymin, ymax),
+                                              pts=self$X,
+                                              n=n,
+                                              gg=TRUE)
+      }
+      if (se) {
+        plotse <- ContourFunctions::cf_func(
+          function(X) {self$predict(X, se.fit=T)$se}, batchmax=Inf,
+          xlim=c(xmin, xmax),
+          ylim=c(ymin, ymax),
+          pts=self$X,
+          n=n,
+          gg=TRUE)
+      }
+      if (mean && se) {
+        gridExtra::grid.arrange(plotmean, plotse,
+                                nrow=if (horizontal) {1} else{2})
+      } else if (mean) {
+        plotmean
+      } else if (se) {
+        plotse
+      } else {
+        stop("Impossible #819571924")
+      }
     },
     #' @description Plot marginal. For each input, hold all others at a constant
     #' value and adjust it along it's range to see how the prediction changes.
-    #' @param pt What point to use as a center. All values except the one being
-    #' plotted are held constant at this value.
-    plotmarginal = function(pt=colMeans(self$X)) {
+    #' @param npt Number of lines to make. Each line represents changing a
+    #' single variable while holding the others at the same values.
+    #' @param ncol Number of columnsfor the plot
+    plotmarginal = function(npt=5, ncol=NULL) {
       # pt <- colMeans(self$X)
       # pt
+      pt <- lhs::maximinLHS(n=npt, k=self$D)
+      pt <- sweep(pt, 2, apply(self$X, 2, max) - apply(self$X, 2, min), "*")
+      pt <- sweep(pt, 2, apply(self$X, 2, min), "+")
+
       factorinfo <- find_kernel_factor_dims(self$kernel)
       if (length(factorinfo > 0)) {
         factorindexes <- factorinfo[2*(1:(length(factorinfo)/2))-1]
         factornlevels <- factorinfo[2*(1:(length(factorinfo)/2))]
         for (i in 1:length(factorindexes)) {
           if (!(pt[factorindexes[i]] %in% 1:factornlevels[i])) {
-            pt[factorindexes[i]] <- sample(1:factornlevels[i], 1)
+            pt[, factorindexes[i]] <- sample(1:factornlevels[i], npt, replace=T)
           }
         }
       } else {
         factorindexes <- c()
       }
+      icolnames <- if (is.null(colnames(self$X))) {
+        paste0("X", 1:ncol(self$X))
+      } else {
+        colnames(self$X)
+      }
       pts <- NULL
-      for (i in 1:ncol(self$X)) {
-        if (i %in% factorindexes) {
-          ind_i <- which(factorindexes == i)
-          xseq <- 1:(factorinfo[2*ind_i])
-        } else {
-          xseq <- seq(min(self$X[,i]), max(self$X[,i]), l=51)
+      for (j in 1:npt) {
+        for (i in 1:ncol(self$X)) {
+          if (i %in% factorindexes) {
+            ind_i <- which(factorindexes == i)
+            xseq <- 1:(factorinfo[2*ind_i])
+          } else {
+            xseq <- seq(min(self$X[,i]), max(self$X[,i]), l=51)
+          }
+          Xmat <- matrix(pt[j,], byrow=T, ncol=ncol(pt), nrow=length(xseq))
+          Xmat[, i] <- xseq
+          pX <- suppressWarnings(self$pred(Xmat, se.fit = T))
+          pXm <- suppressWarnings(self$pred(Xmat, se.fit = T, mean_dist=T))
+          pts <- rbind(pts,
+                       data.frame(pred=pX$mean, predse=pX$se, predmeanse=pXm$se,
+                                  xi=xseq, i=i, j=j, icolname=icolnames[i]))
         }
-        Xmat <- matrix(pt, byrow=T, ncol=length(pt), nrow=length(xseq))
-        Xmat[, i] <- xseq
-        pX <- self$pred(Xmat, se.fit = T)
-        pts <- rbind(pts,
-                     cbind(pred=pX$mean, predse=pX$se, xi=xseq, i=i))
       }
       pts2 <- as.data.frame(pts)
       # pts2 %>%
@@ -1096,51 +1311,202 @@ GauPro_kernel_model <- R6::R6Class(
       #          predlower=pred-2*predse)
       pts2$predupper <- pts2$pred + 2*pts2$predse
       pts2$predlower <- pts2$pred - 2*pts2$predse
-      ggplot2::ggplot(data=pts2, ggplot2::aes(xi, pred)) +
-        ggplot2::facet_wrap(.~i, scales = "free_x") +
-        ggplot2::geom_line(ggplot2::aes(y=predupper), color="green") +
-        ggplot2::geom_line(ggplot2::aes(y=predlower), color="green") +
-        ggplot2::geom_line(linewidth=1) +
-        ggplot2::ylab("Predicted Z (95% interval)") +
-        ggplot2::xlab("x along dimension i")
+      pts2$predmeanupper <- pts2$pred + 2*pts2$predmeanse
+      pts2$predmeanlower <- pts2$pred - 2*pts2$predmeanse
+      if (length(factorindexes) < .5) {
+        ggplot2::ggplot(data=pts2, ggplot2::aes(xi, pred, group=j)) +
+          ggplot2::facet_wrap(.~icolname, scales = "free_x") +
+          ggplot2::geom_line(ggplot2::aes(y=predmeanupper), color="orange") +
+          ggplot2::geom_line(ggplot2::aes(y=predmeanlower), color="orange") +
+          ggplot2::geom_line(ggplot2::aes(y=predupper), color="green") +
+          ggplot2::geom_line(ggplot2::aes(y=predlower), color="green") +
+          ggplot2::geom_line(linewidth=1) +
+          ggplot2::ylab("Predicted Z (95% interval)") +
+          ggplot2::xlab("x along dimension i")
+      } else {
+        # Has at least one factor.
+        # Convert factor/char back from int
+        plots <- list()
+        # ncol <- floor(sqrt(self$D))
+        # Pick ncol based on plot size/shape and num dims
+        if (is.null(ncol)) {
+          ncol <- min(self$D,
+                      max(1,
+                          round(sqrt(self$D)*dev.size()[1]/dev.size()[2])))
+        }
+        stopifnot(is.numeric(ncol), length(ncol)==1, ncol>=1, ncol<=self$D)
+
+        ylim <- c(min(pts2$predlower), max(pts2$predupper))
+        for (iii in 1:self$D) {
+          pts2_iii <- dplyr::filter(pts2, i==iii)
+          if (iii %in% factorindexes && !is.null(self$convert_formula_data)) {
+            for (jjj in seq_along(self$convert_formula_data$factors)) {
+              if (iii == self$convert_formula_data$factors[[jjj]]$index) {
+                pts2_iii$xi <-
+                  self$convert_formula_data$factors[[jjj]]$levels[pts2_iii$xi]
+              }
+            }
+            for (jjj in seq_along(self$convert_formula_data$chars)) {
+              if (iii == self$convert_formula_data$chars[[jjj]]$index) {
+                pts2_iii$xi <-
+                  self$convert_formula_data$chars[[jjj]]$vals[pts2_iii$xi]
+              }
+            }
+          }
+          stopifnot(is.data.frame(pts2_iii))
+          plt <- ggplot2::ggplot(data=pts2_iii,
+                                 mapping=ggplot2::aes(xi, pred, group=j)) +
+            ggplot2::facet_wrap(.~icolname, scales = "free_x") +
+            ggplot2::geom_line(ggplot2::aes(y=predmeanupper), color="orange") +
+            ggplot2::geom_line(ggplot2::aes(y=predmeanlower), color="orange") +
+            ggplot2::geom_line(ggplot2::aes(y=predupper), color="green") +
+            ggplot2::geom_line(ggplot2::aes(y=predlower), color="green") +
+            ggplot2::geom_line(linewidth=1) +
+            ggplot2::ylab(NULL) +
+            ggplot2::xlab(NULL) +
+            ggplot2::coord_cartesian(ylim=ylim)
+          if (iii%%ncol != 1) {
+            plt <- plt +
+              ggplot2::theme(axis.title.y=ggplot2::element_blank(),
+                             axis.text.y=ggplot2::element_blank(),
+                             axis.ticks.y=ggplot2::element_blank())
+          }
+          plots[[iii]] <- plt
+        }
+        gridExtra::grid.arrange(grobs=plots,
+                                left="Predicted Z (95% interval)",
+                                bottom='x along dimension i', ncol=ncol)
+      }
     },
     #' @description Plot marginal prediction for random sample of inputs
-    #' @param n Number of random points to evaluate
-    plotmarginalrandom = function(n=100) {
-      # Plot marginal random averages
-      # Get random matrix, scale to proper lower/upper
-      X <- lhs::randomLHS(n=n, k=ncol(self$X))
-      X2 <- sweep(X, 2, apply(self$X, 2, max) - apply(self$X, 2, min), "*")
-      X3 <- sweep(X2, 2, apply(self$X, 2, min), "+")
-      if (is.null(colnames(self$X))) {
-        colnames(X3) <- paste0("X", 1:ncol(X3))
-      } else {
-        colnames(X3) <- colnames(self$X)
-      }
-      # Factor columns shouldn't interpolate
-      factorinfo <- find_kernel_factor_dims(self$kernel)
-      if (length(factorinfo) > 0) {
-        for (i in 1:(length(factorinfo)/2)) {
-          X3[, factorinfo[i*2-1]] <- sample(1:factorinfo[i*2], size=n, replace=T)
+    #' @param npt Number of random points to evaluate
+    #' @param ncol Number of columns in the plot
+    plotmarginalrandom = function(npt=100, ncol=NULL) {
+
+      pt <- lhs::maximinLHS(n=npt, k=self$D)
+      pt <- sweep(pt, 2, apply(self$X, 2, max) - apply(self$X, 2, min), "*")
+      pt <- sweep(pt, 2, apply(self$X, 2, min), "+")
+
+      factorinfo <- GauPro:::find_kernel_factor_dims(self$kernel)
+      if (length(factorinfo > 0)) {
+        factorindexes <- factorinfo[2*(1:(length(factorinfo)/2))-1]
+        factornlevels <- factorinfo[2*(1:(length(factorinfo)/2))]
+        for (i in 1:length(factorindexes)) {
+          if (!(pt[factorindexes[i]] %in% 1:factornlevels[i])) {
+            pt[, factorindexes[i]] <- sample(1:factornlevels[i], npt, replace=T)
+          }
         }
+      } else {
+        factorindexes <- c()
       }
-      X3pred <- self$pred(X3, se.fit = T)
-      X3pred$irow <- 1:nrow(X3pred)
-      X4 <- dplyr::inner_join(
-        X3pred,
-        tidyr::pivot_longer(cbind(as.data.frame(X3),irow=1:nrow(X)), cols=1:ncol(self$X)),
-        "irow")
-      # head(X4)
-      X4$upper <- X4$mean + 2*X4$se
-      X4$lower <- X4$mean - 2*X4$se
-      ggplot2::ggplot(X4, ggplot2::aes(value, mean)) +
-        ggplot2::facet_wrap(.~name, scales="free_x") +
-        # geom_point(aes(y=upper), color="green") +
-        ggplot2::geom_segment(ggplot2::aes(y=upper, yend=lower, xend=value),
-                              color="green", linewidth=2) +
-        ggplot2::geom_point() +
-        ggplot2::ylab("Predicted Z (95% interval)") +
-        ggplot2::xlab("x along dimension i (other dims at random values)")
+      icolnames <- if (is.null(colnames(self$X))) {
+        paste0("X", 1:ncol(self$X))
+      } else {
+        colnames(self$X)
+      }
+
+      # browser()
+      pts <- as.data.frame(pt)
+      colnames(pts) <- icolnames
+      pred_pts <- suppressWarnings(self$predict(pt, se.fit=T))
+      predmean_pts <- suppressWarnings(self$predict(pt, se.fit=T, mean_dist=T))
+
+      # browser()
+      pts$pred <- pred_pts$mean
+      pts$predse <- pred_pts$se
+      pts$predmeanse <- predmean_pts$se
+
+
+      pts2 <- as.data.frame(pts)
+      # pts2 %>%
+      #   mutate(predupper=pred+2*predse,
+      #          predlower=pred-2*predse)
+      pts2$predupper <- pts2$pred + 2*pts2$predse
+      pts2$predlower <- pts2$pred - 2*pts2$predse
+      pts2$predmeanupper <- pts2$pred + 2*pts2$predmeanse
+      pts2$predmeanlower <- pts2$pred - 2*pts2$predmeanse
+
+      if (length(factorinfo) < .5) {
+        tidyr::pivot_longer(pts2, 1:self$D) %>%
+          ggplot2::ggplot(ggplot2::aes(value, pred)) +
+          ggplot2::geom_segment(ggplot2::aes(xend=value,
+                                             y=predlower, yend=predupper),
+                                color="green", linewidth=2) +
+          ggplot2::geom_point() +
+          ggplot2::facet_wrap(.~name, scales='free_x') +
+          ggplot2::ylab("Predicted Z (95% interval)") +
+          ggplot2::xlab(NULL)
+      } else {
+
+        # browser()
+        # Has at least one factor.
+        # Convert factor/char back from int
+        plots <- list()
+        # ncol <- floor(sqrt(self$D))
+        # Pick ncol based on plot size/shape and num dims
+        if (is.null(ncol)) {
+          ncol <- min(self$D,
+                      max(1,
+                          round(sqrt(self$D)*dev.size()[1]/dev.size()[2])))
+        }
+        stopifnot(is.numeric(ncol), length(ncol)==1, ncol>=1, ncol<=self$D)
+
+        ylim <- c(min(pts2$predlower), max(pts2$predupper))
+        # Do each separately since some may be converted to char/factor,
+        #  they can't be in same column as numeric
+        for (iii in 1:self$D) {
+          pts2_iii_inds <- c(iii, setdiff(1:ncol(pts2), 1:self$D))
+          pts2_iii <- pts2[, pts2_iii_inds]
+          colnames(pts2_iii)[1] <- "xi"
+          pts2_iii$icolname <- icolnames[iii]
+          #dplyr::filter(pts2, i==iii)
+          if (iii %in% factorindexes && !is.null(self$convert_formula_data)) {
+            for (jjj in seq_along(self$convert_formula_data$factors)) {
+              if (iii == self$convert_formula_data$factors[[jjj]]$index) {
+                pts2_iii$xi <-
+                  self$convert_formula_data$factors[[jjj]]$levels[pts2_iii$xi]
+              }
+            }
+            for (jjj in seq_along(self$convert_formula_data$chars)) {
+              if (iii == self$convert_formula_data$chars[[jjj]]$index) {
+                pts2_iii$xi <-
+                  self$convert_formula_data$chars[[jjj]]$vals[pts2_iii$xi]
+              }
+            }
+          }
+          stopifnot(is.data.frame(pts2_iii))
+          plt <- ggplot2::ggplot(data=pts2_iii,
+                                 mapping=ggplot2::aes(xi, pred)) +
+            ggplot2::facet_wrap(.~icolname, scales = "free_x") +
+            # ggplot2::geom_line(ggplot2::aes(y=predmeanupper), color="orange") +
+            # ggplot2::geom_line(ggplot2::aes(y=predmeanlower), color="orange") +
+            # ggplot2::geom_line(ggplot2::aes(y=predupper), color="green") +
+            # ggplot2::geom_line(ggplot2::aes(y=predlower), color="green") +
+            # ggplot2::geom_line(linewidth=1) +
+            ggplot2::geom_segment(ggplot2::aes(xend=xi,
+                                               y=predlower, yend=predupper),
+                                  color="green", linewidth=2) +
+            ggplot2::geom_point() +
+            ggplot2::ylab(NULL) +
+            ggplot2::xlab(NULL) +
+            ggplot2::coord_cartesian(ylim=ylim)
+          if (iii%%ncol != 1) {
+            plt <- plt +
+              ggplot2::theme(axis.title.y=ggplot2::element_blank(),
+                             axis.text.y=ggplot2::element_blank(),
+                             axis.ticks.y=ggplot2::element_blank())
+          }
+          plots[[iii]] <- plt
+        }
+        gridExtra::grid.arrange(grobs=plots,
+                                left="Predicted Z (95% interval)",
+                                bottom='x along dimension i', ncol=ncol)
+      }
+    },
+    #' @description Plot the kernel
+    #' @param X X matrix for kernel plot
+    plotkernel = function(X=self$X) {
+      self$kernel$plot(X=X)
     },
     #' @description Plot leave one out predictions for design points
     # @importFrom ggplot2 ggplot aes stat_smooth geom_abline geom_segment
@@ -1168,7 +1534,7 @@ GauPro_kernel_model <- R6::R6Class(
                            label=paste("Coverage (95%):", signif(coverage,5)),
                            hjust=0, vjust=1) +
         ggplot2::geom_text(x=-Inf, y=Inf,
-                           label=paste("R-sq:             ", signif(rsq,5)),
+                           label=paste("R-sq:                 ", signif(rsq,5)),
                            hjust=0, vjust=2.2) +
         # geom_text(x=Inf, y=-Inf, label="def", hjust=1, vjust=0)
         ggplot2::xlab("Predicted values (fit)") +
@@ -1199,8 +1565,15 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param mu Mean parameters
     #' @param s2 Variance parameter
     loglikelihood = function(mu=self$mu_hatX, s2=self$s2_hat) {
-      -.5 * (self$N*log(s2) + as.numeric(determinant(self$K,logarithm=TRUE)$modulus) + #log(det(self$K)) +
-               t(self$Z - mu)%*%self$Kinv%*%(self$Z - mu)/s2)
+      # Last two terms are -2*deviance
+      -self$N/2*log(2*pi) +
+        -.5*as.numeric(determinant(self$K,logarithm=TRUE)$modulus) +
+        -.5*c(t(self$Z - self$mu_hatX)%*%self$Kinv%*%(self$Z - self$mu_hatX))
+    },
+    #' @description AIC (Akaike information criterion)
+    AIC = function() {
+      2 * length(self$param_optim_start(nug.update = self$nug.est, jitter=F)) -
+        2 * self$loglikelihood()
     },
     #' @description Get optimization functions
     #' @param param_update Should parameters be updated?
@@ -1347,7 +1720,7 @@ GauPro_kernel_model <- R6::R6Class(
         nug_start <- c()
       }
 
-      trend_start <- self$trend$param_optim_start()
+      trend_start <- self$trend$param_optim_start(jitter=jitter)
       kern_start <- self$kernel$param_optim_start(jitter=jitter)
       # nug_start <- Inf
       c(trend_start, kern_start, nug_start)
@@ -1368,7 +1741,7 @@ GauPro_kernel_model <- R6::R6Class(
         # param_start
         nug_start <- c()
       }
-      trend_start <- self$trend$param_optim_start()
+      trend_start <- self$trend$param_optim_start(jitter=jitter)
       kern_start <- self$kernel$param_optim_start(jitter=jitter)
       # nug_start <- Inf
       c(trend_start, kern_start, nug_start)
@@ -1379,7 +1752,7 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param l Not used
     param_optim_start_mat = function(restarts, nug.update, l) {
       s0 <- sample(c(T,F), size=restarts+1, replace=TRUE, prob = c(.33,.67))
-      s0[1] <- TRUE
+      s0[1] <- FALSE
       sapply(1:(restarts+1), function(i) {
         if (s0[i]) {
           self$param_optim_start0(nug.update=nug.update, jitter=(i!=1))
@@ -1482,7 +1855,8 @@ GauPro_kernel_model <- R6::R6Class(
         }
         # Find best to start with
         best_start_inds <- order(order(devs))
-        param_optim_start_mat <- param_optim_start_mat[, best_start_inds < restarts+1.5, drop=F]
+        param_optim_start_mat <- param_optim_start_mat[
+          , best_start_inds < restarts+1.5, drop=F]
       }
 
 
@@ -1765,6 +2139,7 @@ GauPro_kernel_model <- R6::R6Class(
     update_fast = function (Xnew=NULL, Znew=NULL) {
       # Updates data, K, and Kinv, quickly without adjusting parameters
       # Should be O(n^2) instead of O(n^3), but in practice not much faster
+      stopifnot(is.matrix(Xnew))
       N1 <- nrow(self$X)
       N2 <- nrow(Xnew)
       inds2 <- (N1+1):(N1+N2) # indices for new col/row, shorter than inds1
@@ -1833,6 +2208,20 @@ GauPro_kernel_model <- R6::R6Class(
         # self$nug <- optim_out$par[lpar] # optim already does 10^
         # self$kernel$set_params_from_optim(optim_out$par[1:(lpar-1)])
         self$nug <- optim_out$par[ni] # optim already does 10^
+
+        # Give message if it's at a boundary
+        if (self$nug <= self$nug.min && self$verbose>=0) {
+          message(paste0("nug is at minimum value after optimizing. ",
+                         "Check the fit to see it this caused a bad fit. ",
+                         "Consider changing nug.min. ",
+                         "This is probably fine for noiseless data."))
+        }
+        if (self$nug >= self$nug.max && self$verbose>=0) {
+          message(paste0("nug is at maximum value after optimizing. ",
+                         "Check the fit to see it this caused a bad fit. ",
+                         "Consider changing nug.max or checking for ",
+                         "other problems with the data/model."))
+        }
       } else {
         # self$kernel$set_params_from_optim(optim_out$par)
       }
@@ -1847,15 +2236,32 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param Zall All Z values to be used. Will replace existing Z.
     update_data = function(Xnew=NULL, Znew=NULL, Xall=NULL, Zall=NULL) {
       if (!is.null(Xall)) {
-        self$X <- if (is.matrix(Xall)) Xall else matrix(Xall,nrow=1)
+        self$X <- if (is.matrix(Xall)) {
+          Xall
+        } else if (is.data.frame(Xall)) {
+          stop("Xall in update_data must be numeric, not data frame.")
+        } else if (is.numeric(Xall)) {
+          matrix(Xall,nrow=1)
+        } else {
+          stop("Bad Xall in update_data")
+        }
         self$N <- nrow(self$X)
       } else if (!is.null(Xnew)) {
+        Xnewformatted <- if (is.matrix(Xnew)) {
+          Xnew
+        } else if (is.data.frame(Xnew)) {
+          stop("Xnew in update_data must be numeric, not data frame.")
+        } else if (is.numeric(Xnew)) {
+          matrix(Xnew,nrow=1)
+        } else {
+          stop("Bad Xnew in update_data")
+        }
         self$X <- rbind(self$X,
-                        if (is.matrix(Xnew)) Xnew else matrix(Xnew,nrow=1))
+                        Xnewformatted)
         self$N <- nrow(self$X)
       }
       if (!is.null(Zall)) {
-        self$Z <- if (is.matrix(Zall))Zall else matrix(Zall,ncol=1)
+        self$Z <- if (is.matrix(Zall)) Zall else matrix(Zall,ncol=1)
         if (self$normalize) {
           self$normalize_mean <- mean(self$Z)
           self$normalize_sd <- sd(self$Z)
@@ -2364,6 +2770,26 @@ GauPro_kernel_model <- R6::R6Class(
         hess1
       }
     },
+    #' @description Calculate gradient of the predictive variance
+    #' @param XX points to calculate at
+    gradpredvar = function(XX) {
+      if (!is.matrix(XX)) {
+        if (length(XX) == self$D) {
+          XX <- matrix(XX, nrow=1)
+        } else {
+          stop("XX must have length D or be matrix with D columns")
+        }
+      }
+      KX.XX <- self$kernel$k(self$X, XX)
+      dKX.XX <- self$kernel$dC_dx(X=self$X,XX=XX)
+      # -2 * dK %*% self$Kinv %*% KX.XX
+      t2 <- self$Kinv %*% KX.XX
+      ds2 <- matrix(NA, nrow(XX), ncol(XX))
+      for (i in 1:nrow(XX)) {
+        ds2[i, ] <- (-2 * dKX.XX[i, , ] %*% t2[, i])[,1]
+      }
+      ds2
+    },
     #' @description Sample at rows of XX
     #' @param XX Input matrix
     #' @param n Number of samples
@@ -2382,21 +2808,156 @@ GauPro_kernel_model <- R6::R6Class(
       }
       newy # Not transposing matrix since it gives var a problem
     },
+    #' @description Optimize any function of the GP prediction over the
+    #' valid input space.
+    #' If there are inputs that should only be optimized over a discrete set
+    #' of values, specify `mopar` for all parameters.
+    #' Factor inputs will be handled automatically.
+    #' @param fn Function to optimize
+    #' @param lower Lower bounds to search within
+    #' @param upper Upper bounds to search within
+    #' @param n0 Number of points to evaluate in initial stage
+    #' @param minimize Are you trying to minimize the output?
+    #' @param fn_args Arguments to pass to the function fn.
+    #' @param gr Gradient of function to optimize.
+    #' @param fngr Function that returns list with names elements "fn" for the
+    #' function value and "gr" for the gradient. Useful when it is slow to
+    #' evaluate and fn/gr would duplicate calculations if done separately.
+    #' @param mopar List of parameters using mixopt
+    #' @param groupeval Can a matrix of points be evaluated? Otherwise just
+    #' a single point at a time.
+    optimize_fn = function(fn=NULL,
+                           lower=apply(self$X, 2, min),
+                           upper=apply(self$X, 2, max),
+                           n0=100, minimize=FALSE,
+                           fn_args=NULL,
+                           gr=NULL, fngr=NULL,
+                           mopar=NULL,
+                           groupeval=FALSE) {
+      stopifnot(all(lower < upper))
+      stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
+
+      # If any inputs are factors but mopar is not given, create mopar
+      if (is.null(mopar)) {
+        # print('fixing maxEI with factors')
+        # browser()
+        fkfd <- GauPro:::find_kernel_factor_dims2(self$kernel)
+        fkcd <- GauPro:::find_kernel_cts_dims(self$kernel)
+        factorinds <- if (is.null(fkfd)) {
+          c()
+        } else {
+          fkfd[seq(1, length(fkfd), 3)]
+        }
+        ctsinds <- setdiff(1:self$D, factorinds)
+        mopar <- list()
+        for (i in 1:self$D) {
+          if (i %in% ctsinds) {
+            mopar[[i]] <- mixopt::mopar_cts(lower=lower[i],
+                                            upper=upper[i])
+          } else {
+            stopifnot(length(fkfd) > .5, i %in% factorinds)
+            fkfdind <- which(fkfd[(which(seq_along(fkfd) %% 3 == 1))] == i)
+            nlev <- fkfd[(fkfdind-1)*3 + 2]
+            isordered <- fkfd[(fkfdind-1)*3 + 3] > .5
+            if (isordered) {
+              mopar[[i]] <- mixopt::mopar_ordered(values=1:nlev)
+            } else {
+              mopar[[i]] <- mixopt::mopar_unordered(values=1:nlev)
+            }
+          }
+        }
+        attr(mopar, "converted") <- TRUE
+      }
+
+      # Pass this in to EI so it doesn't recalculate it unnecessarily every time
+      # selfXmeanpred <- self$pred(self$X, se.fit=F, mean_dist=T)
+      minmult <- if (minimize) {1} else {-1}
+
+      # Convert functions
+      convert_function_with_inputs <- function(fn, is_fngr=FALSE) {
+        if (is.null(fn)) {
+          return(NULL)
+        }
+        function(xx){
+          if (is.null(self$formula) || !is.null(attr(mopar, "converted"))) {
+            xx2 <- unlist(xx)
+          } else {
+            # Convert to data frame since it will convert to formula.
+            # This way is probably slow.
+            # Alternatively, convert to all numeric, no df/formula
+            xx2 <- as.data.frame(xx)
+            colnames(xx2) <- colnames(self$X)
+          }
+
+          # Eval fn
+          if (is.null(fn_args)) {
+            fnout <- fn(xx2)
+          } else {
+            stopifnot(is.list(fn_args))
+            fnout <- do.call(fn, c(list(xx2), fn_args))
+          }
+          if (is_fngr) {
+            fnout$fn <- fnout$fn * minmult
+            fnout$gr <- fnout$gr * minmult
+          } else {
+            fnout <- fnout * minmult
+          }
+          fnout
+        }
+      }
+      opt_fn <- convert_function_with_inputs(fn)
+      opt_gr <- convert_function_with_inputs(gr)
+      opt_fngr <- convert_function_with_inputs(fngr, is_fngr=TRUE)
+
+
+      # if (!is.null(mopar)) {
+      # Use mixopt, allows for factor/discrete/integer inputs
+      stopifnot(self$D == length(mopar))
+      moout <- mixopt::mixopt_multistart(
+        par=mopar,
+        n0=n0,
+        fn=opt_fn, gr=opt_gr, fngr=opt_fngr,
+        groupeval=groupeval
+      ) # End mixopt
+
+      # Convert output back to input scale
+      if (is.null(self$formula)) {
+        # Convert list to numeric
+        moout_par <- unlist(moout$par)
+      } else if (!is.null(attr(mopar, "converted"))) {
+        # Convert numericback to named to data.frame
+        moout_par <- GauPro:::convert_X_with_formula_back(self, moout$par)
+        colnames(moout_par) <- colnames(self$X)
+      } else {
+        # Convert list to data frame
+        moout_par <- as.data.frame(moout$par)
+        colnames(moout_par) <- colnames(self$X)
+      }
+      return(list(
+        par=moout_par,
+        value=moout$val * minmult
+      ))
+    },
     #' @description Calculate expected improvement
     #' @param x Vector to calculate EI of, or matrix for whose rows it should
     #' be calculated
     #' @param minimize Are you trying to minimize the output?
     #' @param eps Exploration parameter
-    EI = function(x, minimize=FALSE, eps=0) {
+    #' @param return_grad Should the gradient be returned?
+    #' @param ... Additional args
+    EI = function(x, minimize=FALSE, eps=0, return_grad=FALSE, ...) {
       stopifnot(length(minimize)==1, is.logical(minimize))
       stopifnot(length(eps)==1, is.numeric(eps), eps >= 0)
-      # if (minimize) {
-      #   stop('can only max for EI, not min')
-      # }
+      dots <- list(...)
+
       if (is.matrix(x)) {
         stopifnot(ncol(x) == ncol(self$X))
+      } else if (is.vector(x) && self$D==1) {
+        x <- matrix(x, ncol=1)
       } else if (is.vector(x)) {
         stopifnot(length(x) == ncol(self$X))
+      } else if (is.data.frame(x) && !is.null(self$formula)) {
+        # Fine here, will get converted in predict
       } else {
         stop(paste0("bad x in EI, class is: ", class(x)))
       }
@@ -2404,11 +2965,18 @@ GauPro_kernel_model <- R6::R6Class(
       # fxplus <- if (minimize) {min(self$Z)} else {max(self$Z)}
       # pred <- self$pred(x, se.fit=T)
       # Need to use prediction of mean
-      xnew_meanpred <- self$pred(x, se.fit=T, mean_dist=T)
-      Xold_meanpred <- self$pred(self$X, se.fit=T, mean_dist=T)
+      xnew_meanpred <- self$pred(x, se.fit=T, mean_dist=T, return_df=F)
+      if (is.null(dots$selfXmeanpred)) {
+        selfXmeanpred <- self$pred(self$X, se.fit=F, mean_dist=T)
+      } else {
+        selfXmeanpred <- dots$selfXmeanpred
+        stopifnot(is.numeric(selfXmeanpred),
+                  length(selfXmeanpred) == length(self$Z))
+      }
       # Use predicted mean at each point since it doesn't make sense not to
       # when there is noise. Or should fxplus be optimized over inputs?
-      fxplus <- if (minimize) {min(Xold_meanpred$mean)} else {max(Xold_meanpred$mean)}
+      fxplus <- if (minimize) {min(selfXmeanpred)} else {
+        max(selfXmeanpred)}
       if (minimize) {
         # Ztop <- fxplus - pred$mean - eps
         Ztop <- fxplus - xnew_meanpred$mean - eps
@@ -2422,10 +2990,39 @@ GauPro_kernel_model <- R6::R6Class(
       # (Ztop) * pnorm(Z) + pred$se * dnorm(Z)
       # ifelse(pred$se <= 0, 0,
       #        (Ztop) * pnorm(Z) + pred$se * dnorm(Z))
-      ifelse(xnew_meanpred$se <= 0, 0,
-             (Ztop) * pnorm(Z) + xnew_meanpred$se * dnorm(Z))
+      EI <- ifelse(xnew_meanpred$se <= 0, 0,
+                   (Ztop) * pnorm(Z) + xnew_meanpred$se * dnorm(Z))
+      if (return_grad) {
+        minmult <- if (minimize) {1} else {-1}
+        s <- xnew_meanpred$se
+        s2 <- xnew_meanpred$s2
+        y <- xnew_meanpred$mean
+        f <- fxplus - eps * minmult
+        z <- Z
+
+        ds2_dx <- self$gradpredvar(x) # GOOD
+        ds_dx <- .5/s * ds2_dx # GOOD
+        # z <- (f - y) / s
+        dy_dx <- self$grad(x) # GOOD
+        dz_dx <- -dy_dx / s + (f - y) * (-1/s2) * ds_dx # GOOD
+        dz_dx <- dz_dx * minmult
+        ddnormz_dz <- -dnorm(z) * z # GOOD
+        # daug_dx = .5*sigma_eps / (s2 + sigma_eps2)^1.5 * ds2_dx # GOOD
+        dEI_dx = minmult * (-dy_dx*pnorm(z) + (f-y)*dnorm(z)*dz_dx) +
+          ds_dx*dnorm(z) + s*ddnormz_dz*dz_dx #GOOD
+        # numDeriv::grad(function(x) {pr <- self$pred(x,se=T);( EI(pr$mean,pr$se))}, x)
+        # dAugEI_dx = EI * daug_dx + dEI_dx * Aug
+        # numDeriv::grad(function(x) {pr <- self$pred(x,se=T);( EI(pr$mean,pr$se)*augterm(pr$s2))}, x)
+        return(list(
+          EI=EI,
+          grad=dEI_dx
+        ))
+      }
+      EI
     },
-    #' @description Find the point that maximizes the expected improvement
+    #' @description Find the point that maximizes the expected improvement.
+    #' If there are inputs that should only be optimized over a discrete set
+    #' of values, specify `mopar` for all parameters.
     #' @param lower Lower bounds to search within
     #' @param upper Upper bounds to search within
     #' @param n0 Number of points to evaluate in initial stage
@@ -2434,429 +3031,66 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param mopar List of parameters using mixopt
     #' @param dontconvertback If data was given in with a formula, should
     #' it converted back to the original scale?
-    maxEI = function(lower=apply(self$X, 2, min), upper=apply(self$X, 2, max),
+    #' @param EItype Type of EI to calculate. One of "EI", "Augmented",
+    #' or "Corrected"
+    #' @param usegrad Should the gradient be used when optimizing?
+    #' Can make it faster.
+    maxEI = function(lower=apply(self$X, 2, min),
+                     upper=apply(self$X, 2, max),
                      n0=100, minimize=FALSE, eps=0,
                      dontconvertback=FALSE,
-                     discreteinputs=NULL, mopar=NULL) {
-      stopifnot(all(lower < upper))
-      stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
-      # Check if any kernels have factors
-      if (is.null(mopar) &&
-          (!is.null(discreteinputs) ||
-           length(find_kernel_factor_dims(self$kernel)) > 0)) {
-        # Has at least one factor
-        # return(self$maxEIwithfactors(lower=lower, upper=upper, n0=n0,
-        #                              minimize=minimize, eps=eps))
-        return(self$maxEIwithfactorsordiscrete(lower=lower, upper=upper, n0=n0,
-                                               minimize=minimize, eps=eps,
-                                               discreteinputs=discreteinputs,
-                                               dontconvertback=dontconvertback))
+                     EItype="corrected",
+                     mopar=NULL,
+                     usegrad=FALSE) {
+      # Pass this in to EI so it doesn't recalculate it unnecessarily every time
+      selfXmeanpred <- self$pred(self$X, se.fit=F, mean_dist=T)
+
+      stopifnot(is.character(EItype), length(EItype)==1)
+      EItype <- tolower(EItype)
+      EIfunc <- if (EItype %in% c("ei")) {
+        self$EI
+      } else if (EItype %in% c("augmented", "aug", "augmentedei")) {
+        # Aug needs se
+        selfXmeanpred <- self$pred(self$X, se.fit=T, mean_dist=T)
+        self$AugmentedEI
+      } else if (EItype %in% c("corrected", "cor", "correctedei")) {
+        self$CorrectedEI
+      } else {
+        stop("Bad EItype given to maxEI")
       }
-      if (!is.null(mopar)) {
-        # Use mixopt, allows for factor/discrete/integer inputs
-        stopifnot(self$D == length(mopar))
-        moout <- mixopt::mixopt_multistart(
-          par=mopar,
-          fn=function(xx){-self$EI(unlist(xx), minimize = minimize)}
-        )
-        return(list(
-          par=unlist(moout$par),
-          value=-moout$val
-        ))
+
+      # -EIfunc(xx2, minimize = minimize, eps=eps,
+      #         selfXmeanpred=selfXmeanpred)
+
+      fn <- function(xx2) {
+        EIfunc(xx2, minimize = minimize, eps=eps,
+               selfXmeanpred=selfXmeanpred)
       }
-      # Random points to evaluate to find best starting point
-      X0 <- lhs::randomLHS(n=n0, k=ncol(self$X))
-      X0 <- sweep(X0, 2, upper-lower, "*")
-      X0 <- sweep(X0, 2, lower, "+")
-      # Also use point near current optimum
-      bestZind <- if (minimize) {which.min(self$Z)} else {which.max(self$Z)}
-      X0 <- rbind(X0,
-                  pmax(pmin(self$X[bestZind, ] +
-                              rnorm(ncol(self$X), 0, 1e-4),
-                            upper),
-                       lower))
-      # Calculate EI at these points
-      EI0 <- self$EI(x=X0, minimize=minimize, eps=eps)
-      if (all(EI0 <= 0)) {
-        warning("maxEI couldn't find any inputs with nonzero EI")
+
+      if (usegrad) {
+        fngr <- function(xx2) {
+          out <- EIfunc(xx2, minimize = minimize, eps=eps,
+                        selfXmeanpred=selfXmeanpred, return_grad=TRUE)
+          names(out) <- c("fn", "gr")
+          out
+        }
+      } else {
+        fngr <- NULL
       }
-      ind <- which.max(EI0)
-      # Optimize starting from that point to find input that maximizes EI
-      optim_out <- optim(par=X0[ind,],
-                         lower=lower, upper=upper,
-                         # fn=function(xx){ei <- -self$EI(xx); cat(xx, ei, "\n"); ei},
-                         fn=function(xx){-self$EI(xx, minimize = minimize)},
-                         method="L-BFGS-B")
-      optim_out$par
-      # Return list, same format as DiceOptim::max_EI
-      list(
-        par=optim_out$par,
-        value=-optim_out$val
-      )
+
+      self$optimize_fn(fn, minimize=FALSE,
+                       fngr=fngr,
+                       lower=lower, upper=upper,
+                       mopar=mopar, n0=n0)
     },
-    #' @description Find the point that maximizes the expected improvement.
-    #' Used whenever one of the inputs is a factor (can only take values 1:n).
-    #' @param lower Lower bounds to search within
-    #' @param upper Upper bounds to search within
-    #' @param n0 Number of points to evaluate in initial stage
-    #' @param minimize Are you trying to minimize the output?
-    #' @param eps Exploration parameter
-    maxEIwithfactors = function(lower=apply(self$X, 2, min),
-                                upper=apply(self$X, 2, max),
-                                n0=100, minimize=FALSE, eps=0) {
-      stopifnot(all(lower < upper))
-      stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
-      # Get factor info
-      factorinfo <- find_kernel_factor_dims(self$kernel)
-      # Run inner EI over all factor combinations
-      stopifnot(length(factorinfo)>0)
-      # factordf <- data.frame(index=factorinfo[1]
-      factorlist <- list()
-      for (i_f in 1:(length(factorinfo)/2)) {
-        factorlist[[as.character(factorinfo[i_f*2-1])]] <- 1:factorinfo[i_f*2]
-      }
-      factordf <- do.call(expand.grid, factorlist)
-      # Track best seen in optimizing EI
-      bestval <- Inf
-      bestpar <- c()
-      factorxindex <- factorinfo[(1:(length(factorinfo)/2))*2-1] #factorinfo[[1]]
-      factornlevels <- factorinfo[(1:(length(factorinfo)/2))*2]
-
-      # If no non-factor levels, just predict EI at all and return best
-      if (length(factorxindex) == self$D) {
-        Xmat <- as.matrix(factordf)
-        EI_Xmat <- self$EI(Xmat, minimize = minimize)
-        bestind <- which.max(EI_Xmat)[1]
-        bestval <- EI_Xmat[bestind]
-        bestpar <- Xmat[bestind, ]
-        return(unname(bestpar))
-      } else {
-        # Has continuous and factor indices
-        # Alternate optimizing over cts and factors
-        X0 <- lhs::randomLHS(n=n0, k=self$D)
-        X0 <- sweep(X0, 2, upper-lower, "*")
-        X0 <- sweep(X0, 2, lower, "+")
-        for (j in 1:length(factorxindex)) {
-          X0[, factorxindex[j]] <- sample(1:factornlevels[j], n0, replace=TRUE)
-        }
-        # Calculate EI at these points, use best as starting point for optim
-        EI0 <- self$EI(x=X0, minimize=minimize, eps=eps)
-        ind <- which.max(EI0)
-
-        # Continuous indexes
-        ctsinds <- setdiff(1:self$D, factorxindex)
-        Xstart <- X0[ind, ]
-        Xstartfactors <- Xstart[factorxindex]
-        bestEIsofar <- EI0[ind]
-        notdone <- TRUE
-        i_while <- 0
-        while(notdone) {
-          # cat('in while loop', i_while, bestEIsofar, "\n")
-          i_while <- i_while + 1
-          # Optimize over cts variables
-          # Optimize starting from that point to find input that maximizes EI
-          optim_out_i_indcomb <- optim(par=Xstart[-factorxindex], #X0[ind, -factorxindex],
-                                       lower=lower[-factorxindex],
-                                       upper=upper[-factorxindex],
-                                       # fn=function(xx){ei <- -self$EI(xx); cat(xx, ei, "\n"); ei},
-                                       fn=function(xx){
-                                         xx2 <- numeric(self$D)
-                                         xx2[ctsinds] <- xx
-                                         xx2[factorxindex] <- Xstartfactors
-                                         # xx2 <- c(xx[xxinds1], factorxlevel, xx[xxinds2])
-                                         # cat(xx, xx2, "\n")
-                                         -self$EI(xx2, minimize = minimize)
-                                       },
-                                       method="L-BFGS-B")
-          Xstart2 <- Xstart
-          Xstart2[-factorxindex] <- optim_out_i_indcomb$par
-          # Optimize over factors
-          Xmat <- matrix(Xstart2, byrow=TRUE, nrow=nrow(factordf), ncol=self$D)
-          Xmat[, factorxindex] <- as.matrix(factordf)
-          EI_Xmat <- self$EI(Xmat, minimize = minimize)
-          # for (i in 1:nrow(Xmat)) {
-          #   Xmat[i, -factorxindex] <-
-          # }
-          newbestEI <- max(EI_Xmat)
-          newbestX <- Xmat[which.min(EI_Xmat)[1],]
-          # If no improvement, end it
-          if (newbestEI - bestEIsofar <=  1e-16) {
-            # return(newbestX)
-            # Return list, same format as DiceOptim::max_EI
-            return(
-              list(
-                par=newbestX,
-                value=newbestEI
-              )
-            )
-          }
-          # Or break if enough iterations
-          if (i_while > 10) {
-            # return(newbestX)
-            # Return list, same format as DiceOptim::max_EI
-            return(
-              list(
-                par=newbestX,
-                value=newbestEI
-              )
-            )
-          }
-          bestEIsofar <- newbestEI
-        }
-
-      }
-      # stopifnot(length(bestpar) == self$D)
-      # return(bestpar)
-      stop("maxEIwithfactors failed #320198471")
-    },
-    maxEIwithfactorsordiscrete = function(lower=apply(self$X, 2, min),
-                                          upper=apply(self$X, 2, max),
-                                          n0=100, minimize=FALSE, eps=0,
-                                          dontconvertback=FALSE,
-                                          discreteinputs=NULL) {
-      stopifnot(all(lower < upper))
-      stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
-      # Make sure discreteinputs is okay
-      if (!is.null(discreteinputs)) {
-        stopifnot(is.list(discreteinputs), length(discreteinputs)>0)
-        stopifnot(!is.null(names(discreteinputs)),
-                  all(names(discreteinputs) != ""))
-        discreteinds <- as.integer(names(discreteinputs))
-        stopifnot(!is.na(discreteinds))
-      } else {
-        discreteinds <- c()
-      }
-      # Get factor info
-      factorinfo <- find_kernel_factor_dims(self$kernel)
-      if (!is.null(factorinfo)) {
-        # Run inner EI over all factor combinations
-        stopifnot(length(factorinfo)>0)
-        # factordf <- data.frame(index=factorinfo[1]
-        factorlist <- list()
-        for (i_f in 1:(length(factorinfo)/2)) {
-          factorlist[[as.character(factorinfo[i_f*2-1])]] <- 1:factorinfo[i_f*2]
-        }
-        factordf <- do.call(expand.grid, factorlist)
-        # Track best seen in optimizing EI
-        bestval <- Inf
-        bestpar <- c()
-        factorxindex <- factorinfo[(1:(length(factorinfo)/2))*2-1] #factorinfo[[1]]
-        factornlevels <- factorinfo[(1:(length(factorinfo)/2))*2]
-      } else {
-        # Indices of factor columns
-        factorxindex <- c()
-      }
-
-      ctsinds <- setdiff(1:self$D, c(discreteinds, factorxindex))
-
-      # browser("do coordinate descent here?")
-
-      # If no non-factor levels, just predict EI at all and return best
-      if (length(factorxindex) == self$D) {
-        Xmat <- as.matrix(factordf)
-        EI_Xmat <- self$EI(Xmat, minimize = minimize)
-        bestind <- which.max(EI_Xmat)[1]
-        bestval <- EI_Xmat[bestind]
-        bestpar <- Xmat[bestind, ]
-        return(unname(bestpar))
-      } else {
-        # Has continuous/factor/discrete indices
-        # Alternate optimizing over cts and factors an discrete
-        #
-        X0 <- lhs::randomLHS(n=n0, k=self$D)
-        X0 <- sweep(X0, 2, upper-lower, "*")
-        X0 <- sweep(X0, 2, lower, "+")
-        for (j in seq_along(factorxindex)) {
-          X0[, factorxindex[j]] <- sample(1:factornlevels[j], n0, replace=TRUE)
-        }
-        for (j in seq_along(discreteinds)) {
-          X0[, discreteinds[j]] <- sample(discreteinputs[[j]], n0, replace=TRUE)
-        }
-        # Calculate EI at these points, use best as starting point for optim
-        EI0 <- self$EI(x=X0, minimize=minimize, eps=eps)
-        ind <- which.max(EI0)
-
-        # Continuous indexes
-        # ctsinds <- setdiff(1:self$D, factorxindex)
-        Xstart <- X0[ind, ]
-        # Xstartfactors <- Xstart[factorxindex]
-        bestEIsofar <- EI0[ind]
-        notdone <- TRUE
-        i_while <- 0
-        while(notdone) {
-          # cat('in while loop', i_while, bestEIsofar, "\n")
-          i_while <- i_while + 1
-          # Optimize over cts variables
-          if (length(ctsinds) > 0) {
-            # Optimize starting from that point to find input that maximizes EI
-            optim_out_i_indcomb <- optim(par=Xstart[ctsinds], #X0[ind, -factorxindex],
-                                         lower=lower[ctsinds],
-                                         upper=upper[ctsinds],
-                                         # fn=function(xx){ei <- -self$EI(xx); cat(xx, ei, "\n"); ei},
-                                         fn=function(xx){
-                                           xx2 <- numeric(self$D)
-                                           xx2[ctsinds] <- xx
-                                           xx2[-ctsinds] <- Xstart[-ctsinds]
-                                           # xx2 <- c(xx[xxinds1], factorxlevel, xx[xxinds2])
-                                           # cat(xx, xx2, "\n")
-                                           -self$EI(xx2, minimize = minimize)
-                                         },
-                                         method="L-BFGS-B")
-            # Xstart2 <- Xstart
-            # Xstart2[-factorxindex] <- optim_out_i_indcomb$par
-            Xstart[ctsinds] <- optim_out_i_indcomb$par
-            newbestEI <- -optim_out_i_indcomb$value
-          }
-          # Optimize over factors
-          if (length(factorxindex) > 0) {
-            Xmat <- matrix(Xstart, byrow=TRUE, nrow=nrow(factordf), ncol=self$D)
-            Xmat[, factorxindex] <- as.matrix(factordf)
-            EI_Xmat <- self$EI(Xmat, minimize = minimize)
-            # for (i in 1:nrow(Xmat)) {
-            #   Xmat[i, -factorxindex] <-
-            # }
-            bestfactorind <- which.max(EI_Xmat)[1]
-            Xstart[factorxindex] <- Xmat[bestfactorind, factorxindex]
-            newbestEI <- max(EI_Xmat)
-          }
-          # Optimize over discrete
-          if (length(discreteinds) > 0) {
-            for (i in seq_along(discreteinds)) {
-              # ndiscrete <- length(discreteinputs)
-              discretevals_i <- discreteinputs[[i]]
-              # If too many, sample plus keep current best
-              if (length(discretevals_i) > 1100) {
-                discretevals_i <- c(Xstart[discreteinds[i]],
-                                    sample(discretevals_i, 1000, replace=FALSE))
-              }
-              Xmat <- matrix(Xstart, byrow=TRUE,
-                             nrow=length(discretevals_i),
-                             ncol=self$D)
-              Xmat[, discreteinds[i]] <- discretevals_i
-              EI_Xmat <- self$EI(Xmat, minimize = minimize)
-              bestdiscreteind <- which.max(EI_Xmat)[1]
-              Xstart[discreteinds] <- Xmat[bestdiscreteind, discreteinds]
-              newbestEI <- max(EI_Xmat)
-            }
-          }
-
-          # newbestEI <- max(EI_Xmat)
-          # newbestX <- Xmat[which.min(EI_Xmat)[1],]
-          # If no improvement, end it
-          if (newbestEI - bestEIsofar <= 1e-16) {
-            # return(Xstart)
-            # Return list, same format as DiceOptim::max_EI
-            # return(
-            #   list(
-            #     par=Xstart,
-            #     value=newbestEI
-            #   )
-            # )
-            notdone <- FALSE
-          }
-          # Or break if enough iterations
-          if (i_while > 10) {
-            # return(Xstart)
-            # Return list, same format as DiceOptim::max_EI
-            # return(
-            #   list(
-            #     par=Xstart,
-            #     value=newbestEI
-            #   )
-            # )
-            notdone <- FALSE
-          }
-          bestEIsofar <- newbestEI
-        }
-
-        # done
-        # Convert factor/char indexes back to level/value
-        if (!is.null(self$formula) && !dontconvertback) {
-          Xstart <- convert_X_with_formula_back(gpdf=self, x=Xstart)
-        }
-
-        # Return list, same format as DiceOptim::max_EI
-        return(
-          list(
-            par=Xstart,
-            value=newbestEI
-          )
-        )
-
-      }
-      # stopifnot(length(bestpar) == self$D)
-      # return(bestpar)
-      stop("maxEIwithfactorsordiscrete failed #259287")
-    },
-    # maxEI_mixopt = function(mopar_list,
-    #                         n0=100,
-    #                         minimize=FALSE,
-    #                         eps=0) {
-    #   out <- mixop
-    # },
-    # maxEIwithfactorsordiscrete2 = function(lower=apply(self$X, 2, min),
-    #                                        upper=apply(self$X, 2, max),
-    #                                        n0=100, minimize=FALSE, eps=0,
-    #                                        discreteinputs=NULL
-    # ) {
-    #   stopifnot(all(lower < upper))
-    #   stopifnot(length(n0)==1, is.numeric(n0), n0>=1)
-    #   # Make sure discreteinputs is okay
-    #   if (!is.null(discreteinputs)) {
-    #     stopifnot(is.list(discreteinputs), length(discreteinputs)>0)
-    #     stopifnot(!is.null(names(discreteinputs)),
-    #               all(names(discreteinputs) != ""))
-    #     discreteinds <- as.integer(names(discreteinputs))
-    #     stopifnot(!is.na(discreteinds))
-    #   } else {
-    #     discreteinds <- c()
-    #   }
-    #   # Get factor info
-    #   factorinfo <- find_kernel_factor_dims(self$kernel)
-    #   if (!is.null(factorinfo)) {
-    #     # Run inner EI over all factor combinations
-    #     stopifnot(length(factorinfo)>0)
-    #     # factordf <- data.frame(index=factorinfo[1]
-    #     factorlist <- list()
-    #     for (i_f in 1:(length(factorinfo)/2)) {
-    #       factorlist[[as.character(factorinfo[i_f*2-1])]] <- 1:factorinfo[i_f*2]
-    #     }
-    #     factordf <- do.call(expand.grid, factorlist)
-    #     # Track best seen in optimizing EI
-    #     bestval <- Inf
-    #     bestpar <- c()
-    #     factorxindex <- factorinfo[(1:(length(factorinfo)/2))*2-1] #factorinfo[[1]]
-    #     factornlevels <- factorinfo[(1:(length(factorinfo)/2))*2]
-    #   } else {
-    #     # Indices of factor columns
-    #     factorxindex <- c()
-    #   }
-    #
-    #   ctsinds <- setdiff(1:self$D, c(discreteinds, factorxindex))
-    #
-    #   mopar <- list()
-    #   for (i in 1:self$D) {
-    #     if (i %in% ctsinds) {
-    #       mopar[[i]] <- mixopt::mopar_cts(0,1)
-    #     } else if (i %in% discreteinds) {
-    #       mopar[[i]] <- mixopt::mopar_ordered(0:1)
-    #     } else if (i %in% factorxindex) {
-    #       mopar[[i]] <- mixopt::mopar_ordered(0:1)
-    #     } else {
-    #       stop("Error #093842348 not a par")
-    #     }
-    #   }
-    #   mixopt::mixopt_multistart(
-    #     par=mopar,
-    #     fn=mofn,
-    #     n0=n0
-    #   )
-    #
-    # },
     #' @description Find the multiple points that maximize the expected
     #' improvement. Currently only implements the constant liar method.
     #' @param npoints Number of points to add
-    #' @param method Method to use. Can only be "CL" for constant liar.
+    #' @param method Method to use for setting the output value for the points
+    #' chosen as a placeholder.
+    #' Can be one of: "CL" for constant liar,
+    #' which uses the best value seen yet; or "pred", which uses the predicted
+    #' value, also called the Believer method in literature.
     #' @param lower Lower bounds to search within
     #' @param upper Upper bounds to search within
     #' @param n0 Number of points to evaluate in initial stage
@@ -2865,39 +3099,59 @@ GauPro_kernel_model <- R6::R6Class(
     #' @param mopar List of parameters using mixopt
     #' @param dontconvertback If data was given in with a formula, should
     #' it converted back to the original scale?
-    maxqEI = function(npoints, method="CL",
+    #' @param EItype Type of EI to calculate. One of "EI", "Augmented",
+    #' or "Corrected"
+    maxqEI = function(npoints, method="pred",
                       lower=apply(self$X, 2, min),
                       upper=apply(self$X, 2, max),
                       n0=100, minimize=FALSE, eps=0,
+                      EItype="corrected",
                       dontconvertback=FALSE,
                       mopar=NULL) {
       stopifnot(is.numeric(npoints), length(npoints)==1, npoints >= 1)
       if (npoints==1) {
         # For single point, use proper function
         return(self$maxEI(lower=lower, upper=upper, n0=n0,
-                          minimize=minimize, eps=eps, mopar=mopar,
+                          minimize=minimize, eps=eps, EItype=EItype,
+                          mopar=mopar,
                           dontconvertback=dontconvertback))
       }
-      stopifnot(method %in% c("CL", "pred"))
+      stopifnot(length(method)==1, method %in% c("CL", "pred"))
+      # If factor dims in kernel, make sure mopar is given
+      if (length(find_kernel_factor_dims(self$kernel)) > 0 && is.null(mopar)) {
+        warning("maxqEI wasn't given mopar but kernel has factor dimensions")
+      }
       # Clone object since we will add fake data
       gpclone <- self$clone(deep=TRUE)
       # Track points selected
       selectedX <- matrix(data=NA, nrow=npoints, ncol=ncol(self$X))
-      Xmeanpred <- self$pred(self$X, se.fit=T, mean_dist=T)
+      # Xmeanpred <- self$pred(self$X, se.fit=T, mean_dist=T)
+      Xmeanpred <- self$pred(self$X, se.fit=F, mean_dist=T)
       # Zimpute <- if (minimize) {min(self$Z)} else {max(self$Z)}
       # Constant liar value
-      Zimpute <- if (minimize) {min(Xmeanpred$mean)} else {max(Xmeanpred$mean)}
+      # Zimpute <- if (minimize) {min(Xmeanpred$mean)} else {max(Xmeanpred$mean)}
+      Zimpute <- if (minimize) {min(Xmeanpred)} else {max(Xmeanpred)}
       for (i in 1:npoints) {
         # Find and store point that maximizes EI
-        maxEI_i <- gpclone$maxEI(lower=lower, upper=upper, n0=n0, eps=eps,
-                                 minimize=minimize, mopar=mopar,
+        maxEI_i <- gpclone$maxEI(lower=lower, upper=upper,
+                                 n0=n0, eps=eps,
+                                 minimize=minimize, EItype=EItype,
+                                 mopar=mopar,
                                  dontconvertback=TRUE)
         xi <- maxEI_i$par
+        # mixopt could return data frame. Need to convert it to numeric since
+        # it will be added to gpclone$X
+        if (is.data.frame(xi)) {
+          xi <- convert_X_with_formula(xi, self$convert_formula_data,
+                                       self$formula)
+        }
+        stopifnot(is.numeric(xi))
         selectedX[i, ] <- xi
         if (method == "pred") {
           Zimpute <- self$predict(xi)
         }
-        # Update clone with new data, don't update parameters since it's fake data
+        # Update clone with new data, don't update parameters since
+        #  it's fake data
         if (i < npoints) {
           gpclone$update(Xnew=xi, Znew=Zimpute, no_update=TRUE)
         }
@@ -2969,15 +3223,251 @@ GauPro_kernel_model <- R6::R6Class(
       kgs
       mean(kgs)
     },
+    #' @description Calculated Augmented EI
+    #' @param x Vector to calculate EI of, or matrix for whose rows it should
+    #' be calculated
+    #' @param minimize Are you trying to minimize the output?
+    #' @param eps Exploration parameter
+    #' @param return_grad Should the gradient be returned?
+    #' @param f The reference max, user shouldn't change this.
+    #' @param ... Additional args
+    AugmentedEI = function(x, minimize=FALSE, eps=0,
+                           return_grad=F, ...) {
+      stopifnot(length(minimize)==1, is.logical(minimize))
+      stopifnot(length(eps)==1, is.numeric(eps), eps >= 0)
+      dots <- list(...)
+
+      if (is.matrix(x)) {
+        stopifnot(ncol(x) == ncol(self$X))
+      } else if (is.vector(x) && self$D==1) {
+        x <- matrix(x, ncol=1)
+      } else if (is.vector(x)) {
+        stopifnot(length(x) == ncol(self$X))
+      } else if (is.data.frame(x) && !is.null(self$formula)) {
+        # Fine here, will get converted in predict
+      } else {
+        stop(paste0("bad x in EI, class is: ", class(x)))
+      }
+
+      if (is.null(dots$f)) {
+        if (is.null(dots$selfXmeanpred)) {
+          selfXmeanpred <- self$pred(self$X, se.fit=T, mean_dist=T)
+        } else {
+          selfXmeanpred <- dots$selfXmeanpred
+          stopifnot(is.list(selfXmeanpred),
+                    length(selfXmeanpred$mean) == length(self$Z))
+        }
+        # Get preds at existing points, calculate best
+        # pred_X <- self$predict(self$X, se.fit = T)
+        pred_X <- selfXmeanpred
+        if (minimize) {
+          u_X <- -pred_X$mean - pred_X$se
+          star_star_index <- which.max(u_X)
+        } else {
+          # warning("AugEI must minimize for now")
+          u_X <- +pred_X$mean + pred_X$se
+          star_star_index <- which.max(u_X)
+        }
+        f <- pred_X$mean[star_star_index]
+      } else {
+        f <- dots$f
+      }
+      stopifnot(is.numeric(f), length(f) == 1)
+
+      minmult <- if (minimize) {1} else {-1}
+      # Adjust target by eps
+      f <- f - minmult * eps
+
+      predx <- self$pred(x, se=T)
+      y <- predx$mean
+      s <- predx$se
+      s2 <- predx$s2
+
+      z <- (f - y) / s * minmult
+      EI <- (f - y) * minmult * pnorm(z) + s * dnorm(z)
+
+      # Calculate "augmented" term
+      sigma_eps <- self$nug * self$s2_hat
+      sigma_eps2 <- sigma_eps^2
+      Aug <- 1 - sigma_eps / sqrt(s2 + sigma_eps2)
+      AugEI <- Aug * EI
+
+      if (return_grad) {
+        # x <- .8
+        ds2_dx <- self$gradpredvar(x) # GOOD
+        ds_dx <- .5/s * ds2_dx # GOOD
+        # z <- (f - y) / s
+        dy_dx <- self$grad(x) # GOOD
+        dz_dx <- -dy_dx / s + (f - y) * (-1/s2) * ds_dx # GOOD
+        dz_dx <- dz_dx * minmult
+        ddnormz_dz <- -dnorm(z) * z # GOOD
+        daug_dx = .5*sigma_eps / (s2 + sigma_eps2)^1.5 * ds2_dx # GOOD
+        dEI_dx = minmult * (-dy_dx*pnorm(z) + (f-y)*dnorm(z)*dz_dx) +
+          ds_dx*dnorm(z) + s*ddnormz_dz*dz_dx #GOOD
+        # numDeriv::grad(function(x) {pr <- self$pred(x,se=T);
+        #   ( EI(pr$mean,pr$se))}, x)
+        dAugEI_dx = EI * daug_dx + dEI_dx * Aug
+        # numDeriv::grad(function(x) {pr <- self$pred(x,se=T);
+        #   ( EI(pr$mean,pr$se)*augterm(pr$s2))}, x)
+        return(list(
+          AugEI=AugEI,
+          grad=dAugEI_dx
+        ))
+      }
+      AugEI
+    },
+    #' @description Calculated Augmented EI
+    #' @param x Vector to calculate EI of, or matrix for whose rows it should
+    #' be calculated
+    #' @param minimize Are you trying to minimize the output?
+    #' @param eps Exploration parameter
+    #' @param return_grad Should the gradient be returned?
+    #' @param ... Additional args
+    CorrectedEI = function(x, minimize=FALSE, eps=0,
+                           return_grad=F, ...) {
+      stopifnot(length(minimize)==1, is.logical(minimize))
+      stopifnot(length(eps)==1, is.numeric(eps), eps >= 0)
+      dots <- list(...)
+
+      if (is.matrix(x)) {
+        stopifnot(ncol(x) == ncol(self$X))
+      } else if (is.vector(x) && self$D == 1) {
+        # stopifnot(length(x) == ncol(self$X))
+        x <- matrix(x, ncol=1)
+      } else if (is.vector(x)) {
+        stopifnot(length(x) == ncol(self$X))
+        x <- matrix(x, nrow=1)
+      } else if (is.data.frame(x) && !is.null(self$formula)) {
+        # Need to convert here
+        x <- convert_X_with_formula(x, self$convert_formula_data,
+                                    self$formula)
+      }
+      else if (is.data.frame(x)) {
+        x <- as.matrix(x)
+      } else {
+        stop(paste0("bad x in EI, class is: ", class(x)))
+      }
+
+      if (is.null(dots$f)) {
+        if (is.null(dots$selfXmeanpred)) {
+          selfXmeanpred <- self$pred(self$X, se.fit=F, mean_dist=T)
+        } else {
+          selfXmeanpred <- dots$selfXmeanpred
+          stopifnot(is.numeric(selfXmeanpred),
+                    length(selfXmeanpred) == length(self$Z))
+        }
+        # Get preds at existing points, calculate best
+        # pred_X <- self$predict(self$X, se.fit = F)
+        pred_X <- selfXmeanpred
+        if (minimize) {
+          # u_X <- -pred_X$mean - pred_X$se
+          star_star_index <- which.min(pred_X)
+        } else {
+          # warning("AugEI must minimize for now")
+          # u_X <- +pred_X$mean + pred_X$se
+          star_star_index <- which.max(pred_X)
+        }
+
+        f <- pred_X[star_star_index]
+      } else {
+        f <- dots$f
+      }
+      stopifnot(is.numeric(f), length(f) == 1)
+
+      minmult <- if (minimize) {1} else {-1}
+      # Adjust target by eps
+      f <- f - minmult * eps
+
+      # predx <- self$pred(x, se=T)
+      # y <- predx$mean
+      # s <- predx$se
+      # s2 <- predx$s2
+
+      # u represents the point measured with noise
+      # a represents the point (same as u) but measured without noise (mean)
+      u <- x
+      X <- self$X
+      mu_u <- self$trend$Z(u)
+      Ku.X <- self$kernel$k(u, X)
+      mu_X <- self$trend$Z(X)
+      Ka <- self$kernel$k(u)
+      Ku <- Ka + self$nug * self$s2_hat
+      Ku_given_X <- Ku - Ku.X %*% self$Kinv %*% t(Ku.X)
+      # Need to fix negative variances that show up
+      Ku_given_X <- pmax(Ku_given_X, self$nug * self$s2_hat)
+
+      y <- c(mu_u + Ku.X %*% self$Kinv %*% (self$Z - mu_X))
+      s2 <- diag((Ku_given_X - self$nug*self$s2_hat) ^ 2 / (Ku_given_X))
+      s2 <- pmax(s2, 0)
+      # if (ncol(s2) > 1.5) {s2 <- diag(s2)}
+      s <- sqrt(s2)
+
+      # int from f to Inf: (x-f) p(x) dx
+
+
+      z <- (f - y) / s * minmult
+      CorEI <- (f - y) * minmult * pnorm(z) + s * dnorm(z)
+      if (F) {
+        tdf <- 3
+        CorEIt <- (f - y) * minmult * pt(z,tdf) + s * dt(z,tdf)
+        plot(x, CorEI)
+        plot(x, s, ylim=c(0,.3))
+        points(x, self$pred(x, se=T)$se,col=2)
+        points(x, self$pred(x, se=T, mean_dist = T)$se,col=3)
+        cbind(x, y, s, z, CorEI=CorEI, EIt=(f - y) * minmult * pt(z,3) + s * dt(z, 3))
+        legend(x='topright', legend=c(""), fill=1:3)
+      }
+
+
+      # # Calculate "augmented" term
+      # sigma_eps <- self$nug * self$s2_hat
+      # sigma_eps2 <- sigma_eps^2
+      # Aug <- 1 - sigma_eps / sqrt(s2 + sigma_eps2)
+      # AugEI <- Aug * EI
+
+      if (return_grad) {
+        # CorrectedEI grad looks good. Need to check for eps, minimize, tdf
+        # x <- .8
+        # ds2_dx <- self$gradpredvar(x) # GOOD
+        # ds2_dx <- -2 * Ku.X %*% self$Kinv %*% t(self$kernel$dC_dx(XX=u, X=self$X))
+        ds2_dx_t1 <- -2 * Ku.X %*% self$Kinv
+        dC_dx <- (self$kernel$dC_dx(XX=u, X=self$X))
+        ds2_dx <- u*NaN
+        for (i in 1:nrow(u)) {
+          # ds2_dx[i, ] <- ds2_dx_t1[i, ] %*% (dC_dx[i, , ])
+          ds2_dx[i, ] <- t(dC_dx[i, , ] %*% ds2_dx_t1[i, ] )
+        }
+        ds2_dx <- ds2_dx * (1-self$nug^2*self$s2_hat^2/diag(Ku_given_X)^2)
+        ds_dx <- .5/s * ds2_dx # GOOD
+        # z <- (f - y) / s
+        dy_dx <- self$grad(x) # GOOD
+        dz_dx <- -dy_dx / s + (f - y) * (-1/s2) * ds_dx # GOOD
+        dz_dx <- dz_dx * minmult
+        ddnormz_dz <- -dnorm(z) * z # GOOD
+        # daug_dx = .5*sigma_eps / (s2 + sigma_eps2)^1.5 * ds2_dx # GOOD
+        dEI_dx = minmult * (-dy_dx*pnorm(z) + (f-y)*dnorm(z)*dz_dx) +
+          ds_dx*dnorm(z) + s*ddnormz_dz*dz_dx #GOOD
+        # numDeriv::grad(function(x) {pr <- self$pred(x,se=T);( EI(pr$mean,pr$se))}, x)
+        # dAugEI_dx = EI * daug_dx + dEI_dx * Aug
+        # numDeriv::grad(function(x) {pr <- self$pred(x,se=T);( EI(pr$mean,pr$se)*augterm(pr$s2))}, x)
+        return(list(
+          EI=CorEI,
+          grad=dEI_dx
+        ))
+      }
+      c(CorEI)
+    },
     #' @description Feature importance
     #' @param plot Should the plot be made?
-    #' @references https://scikit-learn.org/stable/modules/permutation_importance.html#id2
-    importance = function(plot=TRUE) {
+    #' @param print_bars Should the importances be printed as bars?
+    #' @references
+    #' https://scikit-learn.org/stable/modules/permutation_importance.html#id2
+    importance = function(plot=TRUE, print_bars=TRUE) {
       # variable importance
       # Permutation alg
       # https://scikit-learn.org/stable/modules/permutation_importance.html#id2
       stopifnot(is.logical(plot), length(plot)==1)
-      nouter <- 5
+      nouter <- 10
       # rmse if just predicting mean
       rmse0 <- sqrt(mean((mean(self$Z) - self$Z)^2))
       rmsemod <- sqrt(mean((predict(self, self$X) - self$Z)^2))
@@ -3012,25 +3502,88 @@ GauPro_kernel_model <- R6::R6Class(
       }
 
       # I'm defining importance as this ratio.
-      # 0 means feature has no effect
+      # 0 means feature has no effect on the predictions.
       # 1 or higher means that corrupting that feature completely destroys
-      #  model, it's worse than just predicting mean
+      #  model, it's worse than just predicting mean.
       # imp <- rmses / rmse0
-      imp <- (rmses - rmsemod) / (rmse0 - rmsemod)
-      imp
+      # Avoid divide by zero issue. Happens with white kernel.
+      if (abs(rmse0 - rmsemod) < 1e-64) {
+        imp <- 0 * rmses
+      } else {
+        imp <- (rmses - rmsemod) / (rmse0 - rmsemod)
+      }
+      imp <- round(imp, 4)
 
       if (plot) {
-        ggp <- data.frame(name=factor(names(imp), levels = rev(names(imp))), val=imp) %>%
-          ggplot(aes(val, name)) +
-          geom_vline(xintercept=1) +
-          geom_bar(stat='identity', fill="blue") +
-          xlab("Importance") +
-          ylab("Variable")
+        ggp <- data.frame(name=factor(names(imp), levels = rev(names(imp))),
+                          val=imp) %>%
+          ggplot2::ggplot(ggplot2::aes(val, name)) +
+          ggplot2::geom_vline(xintercept=1) +
+          ggplot2::geom_bar(stat='identity', fill="blue") +
+          ggplot2::xlab("Importance") +
+          ggplot2::ylab("Variable")
         print(ggp)
       }
 
-      # Return importances
-      imp
+      # Print bars
+      if (print_bars) {
+        impwidth <- 12
+        namewidth <- max(10, max(nchar(names(imp))) + 4)
+
+        # nchar1 <- 120
+        # Number of characters until hitting where 1 is.
+        nchar1 <- floor(
+          (getOption("width") - 12 - impwidth - namewidth)/max(1, imp)
+        )
+
+        if (nchar1 < 5) {
+          return(imp)
+        }
+
+        s <- paste0(format("Input", width=namewidth),
+
+                    format("Importance", width=impwidth),
+                    "\n")
+        catt <- function(...) {
+          dots <- list(...)
+          for (i in seq_along(dots)) {
+            s <<- paste0(s, dots[[i]])
+          }
+        }
+        for (i in seq_along(imp)) {
+          catt(format(names(imp)[i], width=namewidth),
+               # format(round(imp[i], 3), width=impwidth, justify = "left")
+               paste0(c(round(imp[i], 3),
+                        rep(" ", impwidth - nchar(round(imp[i], 3)))),
+                      collapse='')
+          )
+          j <- 1
+          while (imp[i] >= j/nchar1) {
+            if (j == nchar1) {
+              catt("|")
+
+            } else {
+              catt("=")
+            }
+            j <- j + 1
+          }
+          while (j < nchar1) {
+            # cat(".")
+            catt(" ")
+            j <- j + 1
+          }
+          if (j == nchar1) {
+            catt("|")
+          }
+          catt("\n")
+        }
+        cat(s)
+
+        invisible(imp)
+      } else {
+        # Return importances
+        imp
+      }
     },
     #' @description Print this object
     print = function() {
@@ -3061,6 +3614,9 @@ GauPro_kernel_model <- R6::R6Class(
       ans$D <- self$D
       ans$N <- self$N
 
+      # AIC
+      ans$AIC <- self$AIC()
+
       # Use LOO predictions
       ploo <- self$pred_LOO(se.fit = T)
       loodf <- cbind(ploo, Z=self$Z)
@@ -3079,9 +3635,14 @@ GauPro_kernel_model <- R6::R6Class(
       ans$coverage68LOO <- coverage68
       rsq <- with(loodf, 1 - (sum((fit-Z)^2)) / (sum((mean(Z)-Z)^2)))
       ans$r.squaredLOO <- rsq
+      ans$r.squared.adjLOO <- (
+        1 - ((1-rsq)*(self$N-1) /
+               (self$N-1-length(self$param_optim_start(nug.update=self$nug.est,
+                                                       jitter=F))))
+      )
 
       # Feature importance
-      ans$importance <- self$importance(plot=FALSE)
+      ans$importance <- self$importance(plot=FALSE, print_bars=FALSE)
 
       # Formula
       if (!is.null(self$formula)) {

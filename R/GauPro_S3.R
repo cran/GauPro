@@ -23,37 +23,37 @@ predict.GauPro <- function(object, XX, se.fit=F, covmat=F, split_speed=T, ...) {
   object$predict(XX=XX, se.fit=se.fit, covmat=covmat, split_speed=split_speed)
 }
 
-if (F) {
-  # Plot is automatically dispatched, same with print and format
-  #' Plot for class GauPro
-  #'
-  #' @param x Object of class GauPro
-  #' @param ... Additional parameters
-  #'
-  #' @return Nothing
-  #' @export
-  #'
-  #' @examples
-  #' n <- 12
-  #' x <- matrix(seq(0,1,length.out = n), ncol=1)
-  #' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
-  #' gp <- GauPro(X=x, Z=y, parallel=FALSE)
-  #' if (requireNamespace("MASS", quietly = TRUE)) {
-  #'   plot(gp)
-  #' }
-  #'
-  plot.GauPro <- function(x,  ...) {
-    x$plot(...)
-    # if (x$D == 1) {
-    #   x$cool1Dplot(...)
-    # } else if (x$D == 2) {
-    #   x$plot2D(...)
-    # } else {
-    #   # stop("No plot method for higher than 2 dimension")
-    #   x$plotmarginal()
-    # }
-  }
-}
+#' if (F) {
+#'   # Plot is automatically dispatched, same with print and format
+#'   #' Plot for class GauPro
+#'   #'
+#'   #' @param x Object of class GauPro
+#'   #' @param ... Additional parameters
+#'   #'
+#'   #' @return Nothing
+#'   #' @export
+#'   #'
+#'   #' @examples
+#'   #' n <- 12
+#'   #' x <- matrix(seq(0,1,length.out = n), ncol=1)
+#'   #' y <- sin(2*pi*x) + rnorm(n,0,1e-1)
+#'   #' gp <- GauPro(X=x, Z=y, parallel=FALSE)
+#'   #' if (requireNamespace("MASS", quietly = TRUE)) {
+#'   #'   plot(gp)
+#'   #' }
+#'   #'
+#'   plot.GauPro <- function(x,  ...) {
+#'     x$plot(...)
+#'     # if (x$D == 1) {
+#'     #   x$cool1Dplot(...)
+#'     # } else if (x$D == 2) {
+#'     #   x$plot2D(...)
+#'     # } else {
+#'     #   # stop("No plot method for higher than 2 dimension")
+#'     #   x$plotmarginal()
+#'     # }
+#'   }
+#' }
 
 #' Summary for GauPro object
 #'
@@ -72,7 +72,7 @@ summary.GauPro <- function(object, ...) {
 #' @param ... Additional args
 #' @importFrom stats binom.test
 #'
-#' @return
+#' @return prints, returns invisible object
 #' @export
 print.summary.GauPro <- function(x, ...) {
   # Formula
@@ -87,18 +87,28 @@ print.summary.GauPro <- function(x, ...) {
   cat("\nFeature importance:\n")
   print(x$importance)
 
+  # AIC
+  cat("\nAIC:", x$AIC, "\n")
+
   # R-squared, Adj R-squared
-  cat("\nPseudo leave-one-out R-squared:\n")
-  cat("\t", x$r.squaredLOO, "\n")
+  cat("\nPseudo leave-one-out R-squared       :")
+  cat("  ", x$r.squaredLOO, "\n")
+  cat("Pseudo leave-one-out R-squared (adj.):")
+  cat("  ", x$r.squared.adjLOO, "\n")
 
   # Coverage
-  # cat("\nLeave-one-out 95% coverage:\n")
-  # cat("\t", x$coverageLOO, "\t(on", x$N, "samples)", "\n")
-  pval68 <- binom.test(x$coverage68LOO*x$N, x$N, .68)$p.value
-  pval95 <- binom.test(x$coverage95LOO*x$N, x$N, .95)$p.value
-  cat("\nLeave-one-out coverage (on", x$N, "samples):\n")
-  cat("\t68%:  ", x$coverage68LOO, "\t\tp-value:  ", pval68, "\n")
-  cat("\t95%:  ", x$coverage95LOO, "\t\tp-value:  ", pval95, "\n")
+  pval68 <- signif(binom.test(x$coverage68LOO*x$N, x$N, .68)$p.value, 4)
+  pval95 <- signif(binom.test(x$coverage95LOO*x$N, x$N, .95)$p.value, 4)
+  cat("\nLeave-one-out coverage on", x$N,
+      "samples (small p-value implies bad fit):\n")
+  coverage68LOO <- signif(x$coverage68LOO, 4)
+  coverage95LOO <- signif(x$coverage95LOO, 4)
+  pvalchar <- 2 + max(nchar(format(coverage68LOO)),
+                      nchar(format(coverage95LOO)))
+  cat("\t68%: ", format(coverage68LOO, width=pvalchar),
+      "       p-value:  ", pval68, "\n")
+  cat("\t95%: ", format(coverage95LOO, width=pvalchar),
+      "       p-value:  ", pval95, "\n")
 
   # Return invisible self
   invisible(x)

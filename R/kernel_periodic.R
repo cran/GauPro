@@ -93,10 +93,12 @@ Periodic <- R6::R6Class(
     #' @param s2_lower Lower bound for s2
     #' @param s2_upper Upper bound for s2
     #' @param s2_est Should s2 be estimated?
+    #' @param useC Should C code used? Much faster if implemented.
     initialize = function(p, alpha=1, s2=1, D,
                           p_lower=0, p_upper=1e2, p_est=TRUE,
                           alpha_lower=0, alpha_upper=1e2, alpha_est=TRUE,
-                          s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE
+                          s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE,
+                          useC=TRUE
     ) {
 
       # Check p and D
@@ -138,7 +140,7 @@ Periodic <- R6::R6Class(
       self$logs2_lower <- log(s2_lower, 10)
       self$logs2_upper <- log(s2_upper, 10)
       self$s2_est <- s2_est
-
+      self$useC <- TRUE
     },
     #' @description Calculate covariance between two points
     #' @param x vector.
@@ -224,7 +226,7 @@ Periodic <- R6::R6Class(
     #' @param C_nonug Covariance without nugget added to diagonal
     #' @param C Covariance with nugget
     #' @param nug Value of nugget
-    dC_dparams = function(params=NULL, X, C_nonug, C, nug) {#browser(text = "Make sure all in one list")
+    dC_dparams = function(params=NULL, X, C_nonug, C, nug) {
       n <- nrow(X)
 
       lenparams <- length(params)
@@ -276,7 +278,9 @@ Periodic <- R6::R6Class(
           for (i in seq(1, n-1, 1)) {
             for (j in seq(i+1, n, 1)) {
               # r2 <- sum(p * (X[i,]-X[j,])^2)
-              dC_dparams[k,i,j] <- -C_nonug[i,j] * alpha * sin(2*p[k]*(X[i,k] - X[j,k])) * (X[i,k] - X[j,k]) * p[k] * log10
+              dC_dparams[k,i,j] <- (
+                -C_nonug[i,j] * alpha * sin(2*p[k]*(X[i,k] - X[j,k])) *
+                  (X[i,k] - X[j,k]) * p[k] * log10)
               dC_dparams[k,j,i] <- dC_dparams[k,i,j]
             }
           }
@@ -330,11 +334,12 @@ Periodic <- R6::R6Class(
       nn <- nrow(XX)
       dC_dx <- array(NA, dim=c(nn, d, n))
       for (i in 1:nn) {
-        for (j in 1:d) {
-          for (k in 1:n) {
-            # r <- sqrt(sum(theta * (XX[i,] - X[k,]) ^ 2))
-            CC <- s2 * exp(-sum(alpha * sin(p * (XX[i, ]-X[k, ]))^2))
-            dC_dx[i, j, k] <- CC * (-alpha) * sin(2*p[j]*(XX[i, j]-X[k, j])) * p[j] #* (XX[i, j] - X[k, j])
+        for (k in 1:n) {
+          # r <- sqrt(sum(theta * (XX[i,] - X[k,]) ^ 2))
+          CC <- s2 * exp(-sum(alpha * sin(p * (XX[i, ]-X[k, ]))^2))
+          for (j in 1:d) {
+            dC_dx[i, j, k] <- CC * (-alpha) * sin(2*p[j]*(XX[i, j]-X[k, j])
+            ) * p[j]
           }
         }
       }

@@ -1,25 +1,8 @@
-# Kernels should implement:
-# k kernel function for two vectors
-# update_params
-# get_optim_functions: return optim.func, optim.grad, optim.fngr
-# param_optim_lower - lower bound of params
-# param_optim_upper - upper
-# param_optim_start - current param values
-# param_optim_start0 - some central param values that can be used for
-#  optimization restarts
-# param_optim_jitter - how to jitter params in optimization
-
-# Suggested
-# deviance
-# deviance_grad
-# deviance_fngr
-# grad
-
-
-
-#' Ordered Factor Kernel R6 class
+#' Gower factor Kernel R6 class
 #'
-#' Use for factor inputs that are considered to have an ordering
+#' For a factor that has been converted to its indices.
+#' Each factor will need a separate kernel.
+#'
 #'
 #' @docType class
 #' @importFrom R6 R6Class
@@ -34,7 +17,6 @@
 #' @field p_est Should p be estimated?
 #' @field p_lower Lower bound of p
 #' @field p_upper Upper bound of p
-#' @field p_length length of p
 #' @field s2 variance
 #' @field s2_est Is s2 estimated?
 #' @field logs2 Log of s2
@@ -46,28 +28,27 @@
 #' indices are the same? Use to avoid decomposition errors, similar to
 #' adding a nugget.
 #' @examples
-#' kk <- OrderedFactorKernel$new(D=1, nlevels=5, xindex=1)
-#' kk$p <- (1:10)/100
+#' kk <- GowerFactorKernel$new(D=1, nlevels=5, xindex=1, p=.2)
 #' kmat <- outer(1:5, 1:5, Vectorize(kk$k))
 #' kmat
+#' kk$plot()
 #'
 #'
-# 2D, Gaussian on 1D, OrderedFactor on 2nd dim
+#' # 2D, Gaussian on 1D, index on 2nd dim
 #' library(dplyr)
 #' n <- 20
 #' X <- cbind(matrix(runif(n,2,6), ncol=1),
 #'            matrix(sample(1:2, size=n, replace=TRUE), ncol=1))
-#' X <- rbind(X, c(3.3,3), c(3.7,3))
+#' X <- rbind(X, c(3.3,3))
 #' n <- nrow(X)
-#' Z <- X[,1] - (4-X[,2])^2 + rnorm(n,0,.1)
-#' plot(X[,1], Z, col=X[,2])
+#' Z <- X[,1] - (X[,2]-1.8)^2 + rnorm(n,0,.1)
 #' tibble(X=X, Z) %>% arrange(X,Z)
 #' k2a <- IgnoreIndsKernel$new(k=Gaussian$new(D=1), ignoreinds = 2)
-#' k2b <- OrderedFactorKernel$new(D=2, nlevels=3, xind=2)
+#' k2b <- GowerFactorKernel$new(D=2, nlevels=3, xind=2)
 #' k2 <- k2a * k2b
 #' k2b$p_upper <- .65*k2b$p_upper
 #' gp <- GauPro_kernel_model$new(X=X, Z=Z, kernel = k2, verbose = 5,
-#'   nug.min=1e-2, restarts=0)
+#'                               nug.min=1e-2, restarts=0)
 #' gp$kernel$k1$kernel$beta
 #' gp$kernel$k2$p
 #' gp$kernel$k(x = gp$X)
@@ -83,16 +64,17 @@
 #' # See which points affect (5.5, 3 themost)
 #' data.frame(X, cov=gp$kernel$k(X, c(5.5,3))) %>% arrange(-cov)
 #' plot(k2b)
-# OrderedFactorKernel ----
-OrderedFactorKernel <- R6::R6Class(
-  classname = "GauPro_kernel_OrderedFactorKernel",
+#'
+#'
+# GowerFactorKernel ----
+GowerFactorKernel <- R6::R6Class(
+  classname = "GauPro_kernel_GowerFactorKernel",
   inherit = GauPro_kernel,
   public = list(
-    p = NULL,
+    p = NULL, # vector of correlations
     p_est = NULL,
     p_lower = NULL,
     p_upper = NULL,
-    p_length = NULL,
     s2 = NULL, # variance coefficient to scale correlation matrix to covariance
     s2_est = NULL,
     logs2 = NULL,
@@ -102,50 +84,48 @@ OrderedFactorKernel <- R6::R6Class(
     xindex = NULL,
     offdiagequal = NULL,
     #' @description Initialize kernel object
-    #' @param p Vector of distances in latent space
     #' @param s2 Initial variance
     #' @param D Number of input dimensions of data
     #' @param p_lower Lower bound for p
     #' @param p_upper Upper bound for p
     #' @param p_est Should p be estimated?
+    #' @param p Vector of correlations
     #' @param s2_lower Lower bound for s2
     #' @param s2_upper Upper bound for s2
     #' @param s2_est Should s2 be estimated?
-    #' @param xindex Index of X to use the kernel on
+    #' @param xindex Index of the factor (which column of X)
     #' @param nlevels Number of levels for the factor
-    #' @param useC Should C code used? Much faster.
+    #' @param useC Should C code used? Not implemented for FactorKernel yet.
     #' @param offdiagequal What should offdiagonal values be set to when the
     #' indices are the same? Use to avoid decomposition errors, similar to
     #' adding a nugget.
-    initialize = function(s2=1, D=NULL, nlevels, xindex,
-                          p_lower=1e-8, p_upper=5, p_est=TRUE,
+    initialize = function(s2=1, D, nlevels, xindex,
+                          p_lower=0, p_upper=.9, p_est=TRUE,
                           s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE,
-                          useC=TRUE, offdiagequal=1-1e-6
+                          p, useC=TRUE, offdiagequal=1-1e-6
     ) {
-      # Don't require giving in D since it doesn't matter
+      # Must give in D
+      if (missing(D)) {stop("Must give Index kernel D")}
 
-      # stopifnot(is.numeric(D), length(D)==1, D>=1, abs(D-round(D))<1e-16)
-      stopifnot(is.numeric(nlevels), length(nlevels)==1, nlevels>=2,
-                abs(nlevels-round(nlevels))<1e-16)
-      stopifnot(is.numeric(xindex), length(xindex)==1, xindex>=1,
-                abs(xindex-round(xindex))<1e-16)
-      # stopifnot(xindex <= D)
       self$D <- D
       self$nlevels <- nlevels
       self$xindex <- xindex
 
-      # p <- rep(0, D * (D-1) / 2)
-      p <- rep(1, nlevels - 1)
+      if (missing(p)) {
+        p <- 0
+      } else {
+        stopifnot(is.numeric(p), length(p) == 1, p>=0, p<=1)
+      }
       self$p <- p
-      self$p_length <- length(p)
 
-      stopifnot(is.numeric(p_lower), length(p_lower)==1, p_lower>=0)
-      stopifnot(is.numeric(p_upper), length(p_upper)==1, p_upper>=0)
-      stopifnot(p_lower <= p_upper)
-      # Ensure separation between levels to avoid instability
-      self$p_lower <- rep(p_lower, self$p_length)
+      stopifnot(is.numeric(p_lower), length(p_lower) == 1,
+                p_lower>=0, p_lower<=1)
+      self$p_lower <- p_lower
+      stopifnot(is.numeric(p_upper), length(p_upper) == 1,
+                p_upper>=0, p_upper<=1,
+                p_lower <= p_upper)
       # Don't give upper 1 since it will give optimization error
-      self$p_upper <- rep(p_upper, self$p_length)
+      self$p_upper <-p_upper
 
       self$p_est <- p_est
       self$s2 <- s2
@@ -169,18 +149,20 @@ OrderedFactorKernel <- R6::R6Class(
         lenparams <- length(params)
 
         if (self$p_est) {
-          p <- params[1:self$p_length]
+          p <- params[1]
         } else {
           p <- self$p
         }
+        # if (self$alpha_est) {
+        #   logalpha <- params[1 + as.integer(self$p_est) * self$p_length]
+        # } else {
+        #   logalpha <- self$logalpha
+        # }
         if (self$s2_est) {
           logs2 <- params[lenparams]
         } else {
           logs2 <- self$logs2
         }
-
-
-
 
         s2 <- 10^logs2
       } else {
@@ -189,29 +171,18 @@ OrderedFactorKernel <- R6::R6Class(
       }
       if (is.null(y)) {
         if (is.matrix(x)) {
-          if (self$useC) {
-            val <- s2 * corr_orderedfactor_matrix_symC(x, p, self$xindex,
-                                                       self$offdiagequal)
-          } else {
-            val <- outer(1:nrow(x), 1:nrow(x),
-                         Vectorize(function(i,j){
-                           self$kone(x[i,],x[j,],p=p, s2=s2, isdiag=i==j)
-                         }))
-          }
+          val <- outer(1:nrow(x), 1:nrow(x),
+                       Vectorize(function(i,j){
+                         self$kone(x[i,],x[j,],p=p, s2=s2, isdiag=i==j)
+                       }))
           return(val)
         } else {
           return(s2 * 1)
         }
       }
       if (is.matrix(x) & is.matrix(y)) {
-        if (self$useC) { # Way faster
-          s2 * corr_orderedfactor_matrixmatrixC(
-            x=x, y=y, theta=p, xindex=self$xindex,
-            offdiagequal=self$offdiagequal)
-        } else {
-          outer(1:nrow(x), 1:nrow(y),
-                Vectorize(function(i,j){self$kone(x[i,],y[j,],p=p, s2=s2)}))
-        }
+        outer(1:nrow(x), 1:nrow(y),
+              Vectorize(function(i,j){self$kone(x[i,],y[j,],p=p, s2=s2)}))
       } else if (is.matrix(x) & !is.matrix(y)) {
         apply(x, 1, function(xx) {self$kone(xx, y, p=p, s2=s2)})
       } else if (is.matrix(y)) {
@@ -229,8 +200,6 @@ OrderedFactorKernel <- R6::R6Class(
     #' @param offdiagequal What should offdiagonal values be set to when the
     #' indices are the same? Use to avoid decomposition errors, similar to
     #' adding a nugget.
-    #' @references
-    #' https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matrix
     kone = function(x, y, p, s2, isdiag=TRUE, offdiagequal=self$offdiagequal) {
       x <- x[self$xindex]
       y <- y[self$xindex]
@@ -245,15 +214,9 @@ OrderedFactorKernel <- R6::R6Class(
           out <- s2 * offdiagequal
         }
       } else {
-        # i <- x-1
-        # j <- y-1
-        i <- min(x,y) #min(x-1, y-1)
-        j <- max(x,y) - 1 #max(x-1, y-1)
-        # n <- self$nlevels
-        p_dist <- sum(p[i:j])
-        out <- s2 * exp(-p_dist^2)
+        out <- s2 * p
       }
-      if (any(is.nan(out))) {stop("Error #44011")}
+      if (any(is.nan(out))) {stop("Error #9228878341")}
       out
     },
     #' @description Derivative of covariance with respect to parameters
@@ -263,13 +226,14 @@ OrderedFactorKernel <- R6::R6Class(
     #' @param C Covariance with nugget
     #' @param nug Value of nugget
     dC_dparams = function(params=NULL, X, C_nonug, C, nug) {
+      # stop("not implemented, kernel index, dC_dp")
       n <- nrow(X)
 
       lenparams <- length(params)
 
       if (lenparams > 0) {
         if (self$p_est) {
-          p <- params[1:self$p_length]
+          p <- params[1]
         } else {
           p <- self$p
         }
@@ -282,6 +246,7 @@ OrderedFactorKernel <- R6::R6Class(
         p <- self$p
         logs2 <- self$logs2
       }
+
       log10 <- log(10)
       s2 <- 10 ^ logs2
 
@@ -290,55 +255,31 @@ OrderedFactorKernel <- R6::R6Class(
         C <- C_nonug + diag(nug*s2, nrow(C_nonug))
       }
 
-      lenparams_D <- self$p_length*self$p_est + self$s2_est
-
-
-      if (self$useC) {
-        dC_dparams <- kernel_orderedFactor_dC(X, p, C_nonug, self$s2_est,
-                                              self$p_est, lenparams_D, s2*nug,
-                                              self$xindex-1,
-                                              self$nlevels, s2)
-        if (any(is.na(dC_dparams))) {
-          print('bad dcdparams')
-          browser('fix this')
-          warning('a;slkdfja;sdlkfj')
-        }
-      } else {
-        dC_dparams <- array(dim=c(lenparams_D, n, n), data=0)
-        if (self$s2_est) {
-          dC_dparams[lenparams_D,,] <- C * log10
-        }
-        if (self$p_est) {
-          for (k in 1:length(p)) { # k is index of parameter
-            for (i in seq(1, n-1, 1)) {
-              for (j in seq(i+1, n, 1)) {
-                xx <- X[i, self$xindex]
-                yy <- X[j, self$xindex]
-                if (xx == yy) {
-                  # Corr is just 1, parameter has no effect
-                } else {
-                  # ii <- min(xx-1, yy-1)
-                  # jj <- max(xx-1, yy-1)
-                  # nn <- self$nlevels
-                  # ind <- (nn*(nn-1)/2) - (nn-ii)*((nn-ii)-1)/2 + jj - ii #- 1
-                  ii <- min(xx,yy)
-                  jj <- max(xx,yy) - 1
-                  if (ii <= k && k <= jj) {
-                    # Does correspond to the correct parameter
-                    p_dist <- sum(p[ii:jj])
-                    r <- exp(-p_dist^2)
-                    dC_dparams[k,i,j] <- -2 * p_dist * r * s2
-                    dC_dparams[k,j,i] <- dC_dparams[k,i,j]
-
-                  } else {
-                    # Parameter has no effect
-                  }
-                }
+      lenparams_D <- as.integer(self$p_est + self$s2_est)
+      dC_dparams <- array(dim=c(lenparams_D, n, n), data=0)
+      if (self$s2_est) {
+        dC_dparams[lenparams_D,,] <- C * log10
+      }
+      if (self$p_est) {
+        for (k in 1:length(p)) { # k is index of parameter
+          for (i in seq(1, n-1, 1)) {
+            xx <- X[i, self$xindex]
+            for (j in seq(i+1, n, 1)) {
+              yy <- X[j, self$xindex]
+              if (xx == yy) {
+                # Corr is just 1, parameter has no effect
+              } else {
+                dC_dparams[k,i,j] <- 1 * s2
+                dC_dparams[k,j,i] <- dC_dparams[k,i,j]
               }
+              #
+              # r2 <- sum(p * (X[i,]-X[j,])^2)
+              # dC_dparams[k,i,j] <- -C_nonug[i,j] * alpha *
+              # dC_dparams[k,j,i] <- dC_dparams[k,i,j]
             }
-            for (i in seq(1, n, 1)) { # Get diagonal set to zero
-              dC_dparams[k,i,i] <- 0
-            }
+          }
+          for (i in seq(1, n, 1)) { # Get diagonal set to zero
+            dC_dparams[k,i,i] <- 0
           }
         }
       }
@@ -353,8 +294,8 @@ OrderedFactorKernel <- R6::R6Class(
       s2 <- self$s2_from_params(params)
       C_nonug <- self$k(x=X, params=params)
       C <- C_nonug + diag(s2*nug, nrow(X))
-      dC_dparams <- self$dC_dparams(params=params, X=X, C_nonug=C_nonug, C=C,
-                                    nug=nug)
+      dC_dparams <- self$dC_dparams(params=params, X=X, C_nonug=C_nonug,
+                                    C=C, nug=nug)
       list(C=C, dC_dparams=dC_dparams)
     },
     #' @description Derivative of covariance with respect to X
@@ -375,11 +316,12 @@ OrderedFactorKernel <- R6::R6Class(
     #' @param jitter Should there be a jitter?
     #' @param y Output
     #' @param p_est Is p being estimated?
+    #' @param alpha_est Is alpha being estimated?
     #' @param s2_est Is s2 being estimated?
     param_optim_start = function(jitter=F, y, p_est=self$p_est,
                                  s2_est=self$s2_est) {
       if (p_est) {
-        vec <- pmin(pmax(self$p + jitter*rnorm(length(self$p), 0, .5),
+        vec <- min(max(self$p + jitter*rnorm(1, 0, .1),
                          self$p_lower), self$p_upper)
       } else {
         vec <- c()
@@ -393,13 +335,13 @@ OrderedFactorKernel <- R6::R6Class(
     #' @param jitter Should there be a jitter?
     #' @param y Output
     #' @param p_est Is p being estimated?
+    #' @param alpha_est Is alpha being estimated?
     #' @param s2_est Is s2 being estimated?
     param_optim_start0 = function(jitter=F, y, p_est=self$p_est,
                                   s2_est=self$s2_est) {
       if (p_est) {
-        vec <- pmin(pmax(rep(1, length(self$p)) +
-                           jitter*rnorm(length(self$p), 0, .5),
-                         self$p_lower), self$p_upper)
+        vec <- min(max(0 + jitter*rnorm(1, 0, .1),
+                       self$p_lower), self$p_upper)
       } else {
         vec <- c()
       }
@@ -410,6 +352,7 @@ OrderedFactorKernel <- R6::R6Class(
     },
     #' @description Lower bounds of parameters for optimization
     #' @param p_est Is p being estimated?
+    #' @param alpha_est Is alpha being estimated?
     #' @param s2_est Is s2 being estimated?
     param_optim_lower = function(p_est=self$p_est,
                                  s2_est=self$s2_est) {
@@ -419,8 +362,10 @@ OrderedFactorKernel <- R6::R6Class(
     },
     #' @description Upper bounds of parameters for optimization
     #' @param p_est Is p being estimated?
+    #' @param alpha_est Is alpha being estimated?
     #' @param s2_est Is s2 being estimated?
     param_optim_upper = function(p_est=self$p_est,
+                                 # alpha_est=self$alpha_est,
                                  s2_est=self$s2_est) {
       if (p_est) {vec <- c(self$p_upper)} else {vec <- c()}
       if (s2_est) {vec <- c(vec, self$logs2_upper)} else {}
@@ -429,12 +374,13 @@ OrderedFactorKernel <- R6::R6Class(
     #' @description Set parameters from optimization output
     #' @param optim_out Output from optimization
     #' @param p_est Is p being estimated?
+    #' @param alpha_est Is alpha being estimated?
     #' @param s2_est Is s2 being estimated?
     set_params_from_optim = function(optim_out, p_est=self$p_est,
                                      s2_est=self$s2_est) {
       loo <- length(optim_out)
       if (p_est) {
-        self$p <- optim_out[1:(self$p_length)]
+        self$p <- optim_out[1]
       }
       if (s2_est) {
         self$logs2 <- optim_out[loo]
@@ -452,24 +398,12 @@ OrderedFactorKernel <- R6::R6Class(
         self$s2
       }
     },
-    #' @description Plot the points in the latent space
-    plotLatent = function() {
-      x <- c(0, cumsum(self$p))
-      pdf <- data.frame(x=x, y=0)
-      pdf$name <- paste0("x=",1:nrow(pdf))
-      ggplot2::ggplot(pdf, ggplot2::aes(x, 0, label=name)) +
-        ggplot2::geom_point() +
-        ggrepel::geom_label_repel() +
-        ggplot2::scale_y_continuous(breaks=NULL) +
-        ggplot2::ylab(NULL)
-    },
     #' @description Print this object
     print = function() {
-      cat('GauPro kernel: Ordered factor\n')
+      cat('GauPro kernel: Gower Factor\n')
       cat('\tD  =', self$D, '\n')
       cat('\ts2 =', self$s2, '\n')
       cat('\ton x-index', self$xindex, 'with', self$nlevels, 'levels\n')
     }
   )
 )
-

@@ -43,6 +43,11 @@ trend_c <- R6::R6Class(
     #' @param m_upper trend upper bounds
     #' @param m_est Logical of whether each param should be estimated
     initialize = function(m = 0, m_lower=-Inf, m_upper=Inf, m_est=TRUE, D=NA) {
+      stopifnot(is.numeric(m), length(m)==1)
+      stopifnot(is.numeric(m_lower), length(m_lower)==1)
+      stopifnot(is.numeric(m_upper), length(m_upper)==1)
+      stopifnot(m_lower <= m_upper)
+      stopifnot(is.logical(m_est), length(m_est)==1, m_est || !m_est)
       self$m <- m
       self$m_lower <- m_lower
       self$m_upper <- m_upper
@@ -82,39 +87,39 @@ trend_c <- R6::R6Class(
     },
     #' @description Get parameter initial point for optimization
     #' @param jitter Not used
-    #' @param trend_est If the trend should be estimate.
-    param_optim_start = function(jitter, trend_est=self$m_est) {
-      if (trend_est) {
-        0
+    #' @param m_est If the trend should be estimate.
+    param_optim_start = function(jitter=F, m_est=self$m_est) {
+      if (m_est) {
+        self$m + if (jitter) {rnorm(1)} else {0}
       } else {
         numeric(0)
       }
     },
     #' @description Get parameter initial point for optimization
     #' @param jitter Not used
-    #' @param trend_est If the trend should be estimate.
-    param_optim_start0 = function(jitter, trend_est=self$m_est) {
-      if (trend_est) {
-        0
+    #' @param m_est If the trend should be estimate.
+    param_optim_start0 = function(jitter=F, m_est=self$m_est) {
+      if (m_est) {
+        0 + if (jitter) {rnorm(1)} else {0}
       } else {
         numeric(0)
       }
     },
     #' @description Get parameter lower bounds for optimization
-    #' @param trend_est If the trend should be estimate.
-    param_optim_lower = function(trend_est=self$m_est) {
+    #' @param m_est If the trend should be estimate.
+    param_optim_lower = function(m_est=self$m_est) {
       # -Inf
-      if (trend_est) {
+      if (m_est) {
         -Inf
       } else {
         numeric(0)
       }
     },
     #' @description Get parameter upper bounds for optimization
-    #' @param trend_est If the trend should be estimate.
-    param_optim_upper = function(trend_est=self$m_est) {
+    #' @param m_est If the trend should be estimate.
+    param_optim_upper = function(m_est=self$m_est) {
       # Inf
-      if (trend_est) {
+      if (m_est) {
         Inf
       } else {
         numeric(0)

@@ -5,7 +5,8 @@
 # param_optim_lower - lower bound of params
 # param_optim_upper - upper
 # param_optim_start - current param values
-# param_optim_start0 - some central param values that can be used for optimization restarts
+# param_optim_start0 - some central param values that can be used for
+#  optimization restarts
 # param_optim_jitter - how to jitter params in optimization
 
 # Suggested
@@ -67,38 +68,142 @@ GauPro_kernel <- R6::R6Class(
     #' to demonstrate how the covariance changes.
     plot = function(X=NULL) {
       stopifnot(!is.null(self$D), self$D >= 1)
+      if (!is.null(X)) {
+        stopifnot(is.matrix(X), ncol(X)==self$D)
+      }
       n <- 101
-      x0 <- rep(0, self$D)
-      df <- NULL
+      x0 <- rep(1, self$D)
+      # df <- NULL
+      plots <- list()
+      factorinfo <- GauPro:::find_kernel_factor_dims(self)
+      factordims <- if (length(factorinfo)==0) {numeric()} else {
+        factorinfo[seq(1, length(factorinfo), 2)]}
       # Loop over each dimension
       for (i in 1:self$D) {
-        if (is.null(X)) {
-          Xi <- seq(0, 1, l=10)
+        df <- NULL
+        xname <- if (!is.null(colnames(X)) && colnames(X)[i] != "") {
+          colnames(X)[i]
         } else {
-          Xi <- X[, i]
+          paste0("X", i)
         }
-        minXi <- min(Xi)
-        maxXi <- max(Xi)
-        Xiseq <- seq(minXi, maxXi,l=n)
-        XX <- matrix(rep(x0, n), byrow = T, ncol=length(x0))
-        # u is values to use as centers for current dimension
-        u <- seq(minXi, maxXi, l=3)
-        for (j in seq_along(u)) {
-          x0j <- x0
-          x0j[i] <- u[j]
-          XX[, i] <- Xiseq
-          k <- self$k(x0j, XX)
-          df <- rbind(df,
-                      data.frame(i=i, x1i=j,
-                                 x1=u[j], x2=Xiseq, k=k)
-          )
+        if (!(i %in% factordims)) { # Continuous kernel
+          if (is.null(X)) {
+            Xi <- seq(0, 1, l=10)
+          } else {
+            Xi <- X[, i]
+          }
+          minXi <- min(Xi)
+          maxXi <- max(Xi)
+          Xiseq <- seq(minXi, maxXi,l=n)
+          XX <- matrix(rep(x0, n), byrow = T, ncol=length(x0))
+          # u is values to use as centers for current dimension
+          u <- seq(minXi, maxXi, l=3)
+          for (j in seq_along(u)) {
+            x0j <- x0
+            x0j[i] <- u[j]
+            XX[, i] <- Xiseq
+            k <- self$k(x0j, XX)
+            df <- rbind(df,
+                        data.frame(i=i, x1i=j,
+                                   x1=u[j], x2=Xiseq, k=k)
+            )
+          }
+          ploti <- ggplot2::ggplot(df,
+                                   ggplot2::aes(x2, k,
+                                                group=x1, color=factor(x1i))) +
+            ggplot2::geom_line() +
+            # ggplot2::facet_wrap(.~i, scales='free_x') +
+            ggplot2::guides(color='none') +
+            ggplot2::xlab(xname) +
+            ggplot2::coord_cartesian(ylim=(c(0, max(df$k))))
+        } else { # Factor dim
+          nlevels <- factorinfo[
+            which(factorinfo[seq(1, length(factorinfo), 2)] == i)[1] *2]
+          xindex <- i
+          x1 <- 1:nlevels
+          X1 <- X2 <- matrix(data=1, ncol=self$D, nrow=nlevels)
+          X1[, xindex] <- x1
+          X2[, xindex] <- x1
+          k <- self$k(X1, X2)
+
+          df <- NULL
+          for (il in 1:nlevels) {
+            for (j in 1:nlevels) {
+              df <- rbind(df,
+                          data.frame(x1=il, x2=j, k=k[il,j]))
+            }
+          }
+          ploti <- ggplot2::ggplot(data=df, ggplot2::aes(x1, x2, fill=k)) +
+            ggplot2::geom_tile() +
+            ggplot2::scale_fill_gradient(low='white', high='red',
+                                         limits=c(0, NA)) +
+            ggplot2::scale_x_continuous(breaks=1:nlevels) +
+            ggplot2::scale_y_continuous(breaks=nlevels:1, trans='reverse') +
+            ggplot2::ylab(NULL) +
+            ggplot2::xlab(xname)
+          # To add squares
+          # geom_segment(data=data.frame(x=c(.5+0:nlevels),
+          #  xend=c(.5+0:nlevels),
+          #  y=.5, yend=nlevels+.5),
+          #              aes(x=x,xend=xend,y=y,yend=yend), inherit.aes = F) +
+          # geom_segment(data=data.frame(y=c(.5+0:nlevels),
+          #  yend=c(.5+0:nlevels),
+          #  x=.5, xend=nlevels+.5),
+          #              aes(x=x,xend=xend,y=y,yend=yend), inherit.aes = F)
+
         }
+        # Add plot to list
+        plots[[i]] <- ploti
+        rm(df)
       }
-      ggplot2::ggplot(df, ggplot2::aes(x2, k, group=x1, color=factor(x1i))) +
-        ggplot2::geom_line() +
-        ggplot2::facet_wrap(.~i, scales='free_x') +
-        ggplot2::guides(color='none')
+      # Arrange
+      # do.call(gridExtra::grid.arrange, c(plots,
+      #  ncol=floor(sqrt(length(plots)))))
+      if (length(plots) == 1) {
+        plots[[1]]
+      } else {
+        gridExtra::grid.arrange(grobs=plots,
+                                ncol=floor(sqrt(length(plots))))
+      }
     },
+    # Below only worked for cts, not factors.
+    # plot = function(X=NULL) {
+    #   stopifnot(!is.null(self$D), self$D >= 1)
+    #   if (!is.null(X)) {
+    #     stopifnot(is.matrix(X), ncol(X)==self$D)
+    #   }
+    #   n <- 101
+    #   x0 <- rep(0, self$D)
+    #   df <- NULL
+    #   # Loop over each dimension
+    #   for (i in 1:self$D) {
+    #     if (is.null(X)) {
+    #       Xi <- seq(0, 1, l=10)
+    #     } else {
+    #       Xi <- X[, i]
+    #     }
+    #     minXi <- min(Xi)
+    #     maxXi <- max(Xi)
+    #     Xiseq <- seq(minXi, maxXi,l=n)
+    #     XX <- matrix(rep(x0, n), byrow = T, ncol=length(x0))
+    #     # u is values to use as centers for current dimension
+    #     u <- seq(minXi, maxXi, l=3)
+    #     for (j in seq_along(u)) {
+    #       x0j <- x0
+    #       x0j[i] <- u[j]
+    #       XX[, i] <- Xiseq
+    #       k <- self$k(x0j, XX)
+    #       df <- rbind(df,
+    #                   data.frame(i=i, x1i=j,
+    #                              x1=u[j], x2=Xiseq, k=k)
+    #       )
+    #     }
+    #   }
+    #   ggplot2::ggplot(df, ggplot2::aes(x2, k, group=x1, color=factor(x1i))) +
+    #     ggplot2::geom_line() +
+    #     ggplot2::facet_wrap(.~i, scales='free_x') +
+    #     ggplot2::guides(color='none')
+    # },
     #' @description Print this object
     print = function() {
       cat('GauPro kernel: (type unknown)\n')

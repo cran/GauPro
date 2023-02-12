@@ -68,6 +68,40 @@ solveC <- function(A, b) {
     .Call(`_GauPro_solveC`, A, b)
 }
 
+corr_cubic_matrixC <- function(x, y, theta) {
+    .Call(`_GauPro_corr_cubic_matrixC`, x, y, theta)
+}
+
+#' Correlation Cubic matrix in C (symmetric)
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @return Correlation matrix
+#' @export
+#' @examples
+#' corr_cubic_matrix_symC(matrix(c(1,0,0,1),2,2),c(1,1))
+corr_cubic_matrix_symC <- function(x, theta) {
+    .Call(`_GauPro_corr_cubic_matrix_symC`, x, theta)
+}
+
+corr_cubic_matrixvecC <- function(x, y, theta) {
+    .Call(`_GauPro_corr_cubic_matrixvecC`, x, y, theta)
+}
+
+#' Derivative of cubic kernel covariance matrix in C
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @param C_nonug cov mat without nugget
+#' @param s2_est whether s2 is being estimated
+#' @param beta_est Whether theta/beta is being estimated
+#' @param lenparams_D Number of parameters the derivative is being calculated for
+#' @param s2_nug s2 times the nug
+#' @param s2 s2
+#' @return Correlation matrix
+#' @export
+kernel_cubic_dC <- function(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug, s2) {
+    .Call(`_GauPro_kernel_cubic_dC`, x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug, s2)
+}
+
 corr_exponential_matrixC <- function(x, y, theta) {
     .Call(`_GauPro_corr_exponential_matrixC`, x, y, theta)
 }
@@ -326,6 +360,64 @@ corr_matern52_matrixvecC <- function(x, y, theta) {
 #' @export
 kernel_matern52_dC <- function(x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug) {
     .Call(`_GauPro_kernel_matern52_dC`, x, theta, C_nonug, s2_est, beta_est, lenparams_D, s2_nug)
+}
+
+#' Correlation ordered factor  matrix in C (symmetric)
+#' @param x Matrix x
+#' @param theta Theta vector
+#' @param xindex Index to use
+#' @param offdiagequal What to set off-diagonal values with matching values to.
+#' @return Correlation matrix
+#' @export
+#' @examples
+#' corr_orderedfactor_matrix_symC(matrix(c(1,.5, 2,1.6, 1,0),ncol=2,byrow=TRUE),
+#'                               c(1.5,1.8), 1, 1-1e-6)
+#' corr_orderedfactor_matrix_symC(matrix(c(0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,4),
+#'                                      ncol=4, byrow=TRUE),
+#'   c(0.101, -0.714, 0.114, -0.755, 0.117, -0.76, 0.116, -0.752),
+#'   4, 1-1e-6) * 6.85
+corr_orderedfactor_matrix_symC <- function(x, theta, xindex, offdiagequal) {
+    .Call(`_GauPro_corr_orderedfactor_matrix_symC`, x, theta, xindex, offdiagequal)
+}
+
+#' Correlation ordered factor matrix in C (symmetric)
+#' @param x Matrix x
+#' @param y Matrix y
+#' @param theta Theta vector
+#' @param xindex Index to use
+#' @param offdiagequal What to set off-diagonal values with matching values to.
+#' @return Correlation matrix
+#' @export
+#' @examples
+#' corr_orderedfactor_matrixmatrixC(matrix(c(1,.5, 2,1.6, 1,0),ncol=2,byrow=TRUE),
+#'                                 matrix(c(2,1.6, 1,0),ncol=2,byrow=TRUE),
+#'                                 c(1.5,1.8), 1, 1-1e-6)
+#' corr_orderedfactor_matrixmatrixC(matrix(c(0,0,0,1,0,0,0,2,0,0,0,3,0,0,0,4),
+#'                                   ncol=4, byrow=TRUE),
+#'                                 matrix(c(0,0,0,2,0,0,0,4,0,0,0,1),
+#'                                   ncol=4, byrow=TRUE),
+#'   c(0.101, -0.714, 0.114, -0.755, 0.117, -0.76, 0.116, -0.752),
+#'   4, 1-1e-6) * 6.85
+corr_orderedfactor_matrixmatrixC <- function(x, y, theta, xindex, offdiagequal) {
+    .Call(`_GauPro_corr_orderedfactor_matrixmatrixC`, x, y, theta, xindex, offdiagequal)
+}
+
+#' Derivative of covariance matrix of X with respect to kernel
+#' parameters for the Ordered Factor Kernel
+#' @param x Matrix x
+#' @param pf pf vector
+#' @param C_nonug cov mat without nugget
+#' @param s2_est whether s2 is being estimated
+#' @param p_est Whether theta/beta is being estimated
+#' @param lenparams_D Number of parameters the derivative is being calculated for
+#' @param s2_nug s2 times the nug
+#' @param xindex Which column of x is the indexing variable
+#' @param nlevels Number of levels
+#' @param s2 Value of s2
+#' @return Correlation matrix
+#' @export
+kernel_orderedFactor_dC <- function(x, pf, C_nonug, s2_est, p_est, lenparams_D, s2_nug, xindex, nlevels, s2) {
+    .Call(`_GauPro_kernel_orderedFactor_dC`, x, pf, C_nonug, s2_est, p_est, lenparams_D, s2_nug, xindex, nlevels, s2)
 }
 
 deviance_part <- function(theta, nug, X, Z, Kinv) {

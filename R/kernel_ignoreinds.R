@@ -51,13 +51,15 @@ IgnoreIndsKernel <- R6::R6Class(
     #' @description Initialize kernel object
     #' @param k Kernel to use on the non-ignored indices
     #' @param ignoreinds Indices of columns of X to ignore.
-    initialize = function(k, ignoreinds) {
+    #' @param useC Should C code used? Not implemented for IgnoreInds.
+    initialize = function(k, ignoreinds, useC=TRUE) {
       stopifnot("GauPro_kernel" %in% class(k))
       stopifnot(is.numeric(ignoreinds))
       stopifnot(abs(ignoreinds - round(ignoreinds)) < 1e-8, ignoreinds>.99999)
       self$kernel <- k
       self$ignoreinds <- ignoreinds
       self$D <- self$kernel$D + length(self$ignoreinds)
+      self$useC <- useC # Never used
     },
     #' @description Calculate covariance between two points
     #' @param x vector.
@@ -109,6 +111,24 @@ IgnoreIndsKernel <- R6::R6Class(
       X2 <- X[, -self$ignoreinds, drop=FALSE]
       arglist <- list(params=params, X=X2, nug=nug)
       do.call(self$kernel$C_dC_dparams, arglist)
+    },
+    # Below is updated version using arma, was called dC_dx_arma before
+    #' @description Derivative of covariance with respect to X
+    #' @param XX matrix of points
+    #' @param X matrix of points to take derivative with respect to
+    #' @param ... Additional arguments passed on to the kernel
+    dC_dx = function(XX, X, ...) {
+      if (!is.matrix(XX)) {stop("XX must be matrix")}
+      if (ncol(X) != ncol(XX)) {stop("XX and X must have same number of cols")}
+      # corr_gauss_dCdX(XX, X, theta, s2)
+      # stop()
+      out <- array(data=0, dim=c(nrow(XX), ncol(X), nrow(X)))
+      # useinds <- setdiff(1:D, self$ignoreinds)
+      sub_dC_dx <- self$kernel$dC_dx(XX=XX[, -self$ignoreinds, drop=FALSE],
+                                     X=X[, -self$ignoreinds, drop=FALSE],
+                                     ...)
+      out[, -self$ignoreinds, ] <- sub_dC_dx
+      out
     },
     #' @description Starting point for parameters for optimization
     #' @param ... Passed to kernel

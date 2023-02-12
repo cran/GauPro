@@ -70,9 +70,9 @@ plot(k2b)
 
 \item{\code{p_est}}{Should p be estimated?}
 
-\item{\code{p_lower}}{Lower bound of logp}
+\item{\code{p_lower}}{Lower bound of p}
 
-\item{\code{p_upper}}{Upper bound of logp}
+\item{\code{p_upper}}{Upper bound of p}
 
 \item{\code{p_length}}{length of p}
 
@@ -89,6 +89,10 @@ plot(k2b)
 \item{\code{xindex}}{Index of the factor (which column of X)}
 
 \item{\code{nlevels}}{Number of levels for the factor}
+
+\item{\code{offdiagequal}}{What should offdiagonal values be set to when the
+indices are the same? Use to avoid decomposition errors, similar to
+adding a nugget.}
 }
 \if{html}{\out{</div>}}
 }
@@ -107,11 +111,17 @@ plot(k2b)
 \item \href{#method-GauPro_kernel_FactorKernel-param_optim_upper}{\code{FactorKernel$param_optim_upper()}}
 \item \href{#method-GauPro_kernel_FactorKernel-set_params_from_optim}{\code{FactorKernel$set_params_from_optim()}}
 \item \href{#method-GauPro_kernel_FactorKernel-s2_from_params}{\code{FactorKernel$s2_from_params()}}
-\item \href{#method-GauPro_kernel_FactorKernel-plot}{\code{FactorKernel$plot()}}
 \item \href{#method-GauPro_kernel_FactorKernel-print}{\code{FactorKernel$print()}}
 \item \href{#method-GauPro_kernel_FactorKernel-clone}{\code{FactorKernel$clone()}}
 }
 }
+\if{html}{\out{
+<details open><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro_kernel" data-id="plot"><a href='../../GauPro/html/GauPro_kernel.html#method-GauPro_kernel-plot'><code>GauPro::GauPro_kernel$plot()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro_kernel_FactorKernel-new"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro_kernel_FactorKernel-new}{}}}
@@ -124,11 +134,14 @@ Initialize kernel object
   nlevels,
   xindex,
   p_lower = 0,
-  p_upper = 1,
+  p_upper = 0.9,
   p_est = TRUE,
   s2_lower = 1e-08,
   s2_upper = 1e+08,
-  s2_est = TRUE
+  s2_est = TRUE,
+  p,
+  useC = TRUE,
+  offdiagequal = 1 - 1e-06
 )}\if{html}{\out{</div>}}
 }
 
@@ -155,9 +168,13 @@ Initialize kernel object
 
 \item{\code{s2_est}}{Should s2 be estimated?}
 
-\item{\code{p}}{Periodic parameter}
+\item{\code{p}}{Vector of correlations}
 
-\item{\code{alpha}}{Periodic parameter}
+\item{\code{useC}}{Should C code used? Not implemented for FactorKernel yet.}
+
+\item{\code{offdiagequal}}{What should offdiagonal values be set to when the
+indices are the same? Use to avoid decomposition errors, similar to
+adding a nugget.}
 }
 \if{html}{\out{</div>}}
 }
@@ -194,7 +211,7 @@ of x with itself.}
 \subsection{Method \code{kone()}}{
 Find covariance of two points
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{FactorKernel$kone(x, y, p, s2, isdiag = TRUE, offdiagequal = 1 - 1e-06)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{FactorKernel$kone(x, y, p, s2, isdiag = TRUE, offdiagequal = self$offdiagequal)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -270,13 +287,7 @@ Calculate covariance matrix and its derivative
 \subsection{Method \code{dC_dx()}}{
 Derivative of covariance with respect to X
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{FactorKernel$dC_dx(
-  XX,
-  X,
-  logp = self$logp,
-  logalpha = self$logalpha,
-  s2 = self$s2
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{FactorKernel$dC_dx(XX, X, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -286,11 +297,7 @@ Derivative of covariance with respect to X
 
 \item{\code{X}}{matrix of points to take derivative with respect to}
 
-\item{\code{logp}}{log of p}
-
-\item{\code{logalpha}}{log of alpha}
-
-\item{\code{s2}}{Variance parameter}
+\item{\code{...}}{Additional args, not used}
 }
 \if{html}{\out{</div>}}
 }
@@ -319,8 +326,6 @@ Starting point for parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -349,8 +354,6 @@ Starting point for parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -370,8 +373,6 @@ Lower bounds of parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -391,8 +392,6 @@ Upper bounds of parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -418,8 +417,6 @@ Set parameters from optimization output
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -439,22 +436,6 @@ Get s2 from params vector
 \item{\code{params}}{parameter vector}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-GauPro_kernel_FactorKernel-plot"></a>}}
-\if{latex}{\out{\hypertarget{method-GauPro_kernel_FactorKernel-plot}{}}}
-\subsection{Method \code{plot()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{FactorKernel$plot(...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Not used.}
 }
 \if{html}{\out{</div>}}
 }

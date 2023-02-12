@@ -3,7 +3,7 @@
 \docType{class}
 \name{OrderedFactorKernel}
 \alias{OrderedFactorKernel}
-\title{Periodic Kernel R6 class}
+\title{Ordered Factor Kernel R6 class}
 \format{
 \code{\link{R6Class}} object.
 }
@@ -11,12 +11,12 @@
 Object of \code{\link{R6Class}} with methods for fitting GP model.
 }
 \description{
-Periodic Kernel R6 class
+Ordered Factor Kernel R6 class
 
-Periodic Kernel R6 class
+Ordered Factor Kernel R6 class
 }
 \details{
-p is the period for each dimension, a is a single number for scaling
+Use for factor inputs that are considered to have an ordering
 }
 \examples{
 kk <- OrderedFactorKernel$new(D=1, nlevels=5, xindex=1)
@@ -69,9 +69,9 @@ https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matri
 
 \item{\code{p_est}}{Should p be estimated?}
 
-\item{\code{p_lower}}{Lower bound of logp}
+\item{\code{p_lower}}{Lower bound of p}
 
-\item{\code{p_upper}}{Upper bound of logp}
+\item{\code{p_upper}}{Upper bound of p}
 
 \item{\code{p_length}}{length of p}
 
@@ -88,6 +88,10 @@ https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matri
 \item{\code{xindex}}{Index of the factor (which column of X)}
 
 \item{\code{nlevels}}{Number of levels for the factor}
+
+\item{\code{offdiagequal}}{What should offdiagonal values be set to when the
+indices are the same? Use to avoid decomposition errors, similar to
+adding a nugget.}
 }
 \if{html}{\out{</div>}}
 }
@@ -106,11 +110,18 @@ https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matri
 \item \href{#method-GauPro_kernel_OrderedFactorKernel-param_optim_upper}{\code{OrderedFactorKernel$param_optim_upper()}}
 \item \href{#method-GauPro_kernel_OrderedFactorKernel-set_params_from_optim}{\code{OrderedFactorKernel$set_params_from_optim()}}
 \item \href{#method-GauPro_kernel_OrderedFactorKernel-s2_from_params}{\code{OrderedFactorKernel$s2_from_params()}}
-\item \href{#method-GauPro_kernel_OrderedFactorKernel-plot}{\code{OrderedFactorKernel$plot()}}
+\item \href{#method-GauPro_kernel_OrderedFactorKernel-plotLatent}{\code{OrderedFactorKernel$plotLatent()}}
 \item \href{#method-GauPro_kernel_OrderedFactorKernel-print}{\code{OrderedFactorKernel$print()}}
 \item \href{#method-GauPro_kernel_OrderedFactorKernel-clone}{\code{OrderedFactorKernel$clone()}}
 }
 }
+\if{html}{\out{
+<details open><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro_kernel" data-id="plot"><a href='../../GauPro/html/GauPro_kernel.html#method-GauPro_kernel-plot'><code>GauPro::GauPro_kernel$plot()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro_kernel_OrderedFactorKernel-new"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro_kernel_OrderedFactorKernel-new}{}}}
@@ -119,15 +130,17 @@ Initialize kernel object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$new(
   s2 = 1,
-  D,
+  D = NULL,
   nlevels,
   xindex,
-  p_lower = 0,
-  p_upper = 1,
+  p_lower = 1e-08,
+  p_upper = 5,
   p_est = TRUE,
   s2_lower = 1e-08,
   s2_upper = 1e+08,
-  s2_est = TRUE
+  s2_est = TRUE,
+  useC = TRUE,
+  offdiagequal = 1 - 1e-06
 )}\if{html}{\out{</div>}}
 }
 
@@ -154,7 +167,13 @@ Initialize kernel object
 
 \item{\code{s2_est}}{Should s2 be estimated?}
 
-\item{\code{p}}{Periodic parameter}
+\item{\code{useC}}{Should C code used? Much faster.}
+
+\item{\code{offdiagequal}}{What should offdiagonal values be set to when the
+indices are the same? Use to avoid decomposition errors, similar to
+adding a nugget.}
+
+\item{\code{p}}{Vector of distances in latent space}
 }
 \if{html}{\out{</div>}}
 }
@@ -191,7 +210,14 @@ of x with itself.}
 \subsection{Method \code{kone()}}{
 Find covariance of two points
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$kone(x, y, p, s2, isdiag = TRUE, offdiagequal = 1 - 1e-06)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$kone(
+  x,
+  y,
+  p,
+  s2,
+  isdiag = TRUE,
+  offdiagequal = self$offdiagequal
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -267,13 +293,7 @@ Calculate covariance matrix and its derivative
 \subsection{Method \code{dC_dx()}}{
 Derivative of covariance with respect to X
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$dC_dx(
-  XX,
-  X,
-  logp = self$logp,
-  logalpha = self$logalpha,
-  s2 = self$s2
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$dC_dx(XX, X, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -283,11 +303,7 @@ Derivative of covariance with respect to X
 
 \item{\code{X}}{matrix of points to take derivative with respect to}
 
-\item{\code{logp}}{log of p}
-
-\item{\code{logalpha}}{log of alpha}
-
-\item{\code{s2}}{Variance parameter}
+\item{\code{...}}{Additional args, not used}
 }
 \if{html}{\out{</div>}}
 }
@@ -316,8 +332,6 @@ Starting point for parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -346,8 +360,6 @@ Starting point for parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -367,8 +379,6 @@ Lower bounds of parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -388,8 +398,6 @@ Upper bounds of parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -415,8 +423,6 @@ Set parameters from optimization output
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -441,20 +447,14 @@ Get s2 from params vector
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-GauPro_kernel_OrderedFactorKernel-plot"></a>}}
-\if{latex}{\out{\hypertarget{method-GauPro_kernel_OrderedFactorKernel-plot}{}}}
-\subsection{Method \code{plot()}}{
+\if{html}{\out{<a id="method-GauPro_kernel_OrderedFactorKernel-plotLatent"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro_kernel_OrderedFactorKernel-plotLatent}{}}}
+\subsection{Method \code{plotLatent()}}{
+Plot the points in the latent space
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$plot(...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{OrderedFactorKernel$plotLatent()}\if{html}{\out{</div>}}
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Not used.}
-}
-\if{html}{\out{</div>}}
-}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro_kernel_OrderedFactorKernel-print"></a>}}

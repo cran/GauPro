@@ -19,7 +19,6 @@
 #' gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Cubic$new(1),
 #'                               parallel=FALSE, restarts=0)
 #' gp$predict(.454)
-#' gp$cool1Dplot()
 Cubic <- R6::R6Class(
   classname = "GauPro_kernel_Cubic",
   inherit = GauPro_kernel_beta,
@@ -57,25 +56,38 @@ Cubic <- R6::R6Class(
       theta <- 10^beta
       if (is.null(y)) {
         if (is.matrix(x)) {
-          val <- outer(1:nrow(x), 1:nrow(x), Vectorize(function(i,j){self$kone(x[i,],x[j,],theta=theta, s2=s2)}))
-          # val <- s2 * corr_matern52_matrix_symC(x, theta)
+          if (self$useC && Sys.info()[['sysname']] == "Windows") {
+            val <- s2 * corr_cubic_matrix_symC(x, theta)
+          } else {
+            val <- outer(1:nrow(x), 1:nrow(x),
+                         Vectorize(function(i,j){self$kone(x[i,],x[j,],
+                                                           theta=theta, s2=s2)}))
+          }
           return(val)
         } else {
           return(s2 * 1)
         }
       }
       if (is.matrix(x) & is.matrix(y)) {
-        # s2 * corr_gauss_matrixC(x, y, theta)
-        outer(1:nrow(x), 1:nrow(y), Vectorize(function(i,j){self$kone(x[i,],y[j,],theta=theta, s2=s2)}))
-        # s2 * corr_matern52_matrixC(x, y, theta)
+        if (self$useC && Sys.info()[['sysname']] == "Windows") {
+          s2 * corr_cubic_matrixC(x, y, theta)
+        } else {
+          outer(1:nrow(x), 1:nrow(y),
+                Vectorize(function(i,j){self$kone(x[i,],y[j,],
+                                                  theta=theta, s2=s2)}))
+        }
       } else if (is.matrix(x) & !is.matrix(y)) {
-        # s2 * corr_gauss_matrixvecC(x, y, theta)
-        apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, s2=s2)})
-        # s2 * corr_matern52_matvecC(x, y, theta)
+        if (self$useC && Sys.info()[['sysname']] == "Windows") {
+          s2 * corr_cubic_matrixvecC(x, y, theta)
+        } else {
+          apply(x, 1, function(xx) {self$kone(xx, y, theta=theta, s2=s2)})
+        }
       } else if (is.matrix(y)) {
-        # s2 * corr_gauss_matrixvecC(y, x, theta)
-        apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, s2=s2)})
-        # s2 * corr_matern52_matvecC(y, x, theta)
+        if (self$useC && Sys.info()[['sysname']] == "Windows") {
+          s2 * corr_cubic_matrixvecC(y, x, theta)
+        } else {
+          apply(y, 1, function(yy) {self$kone(yy, x, theta=theta, s2=s2)})
+        }
       } else {
         self$kone(x, y, theta=theta, s2=s2)
       }
@@ -90,7 +102,11 @@ Cubic <- R6::R6Class(
       if (missing(theta)) {theta <- 10^beta}
       h <- x-y
       d <- h/theta
-      r <- ifelse(abs(d) <= 0.5, 1-6*d^2+6*abs(d)^3, ifelse(abs(d) <= 1, 2*(1-abs(d))^3, 0))
+      r <- ifelse(abs(d) <= 0.5,
+                  1-6*d^2+6*abs(d)^3,
+                  ifelse(abs(d) <= 1,
+                         2*(1-abs(d))^3,
+                         0))
       prod(r) * s2
     },
     #' @description Derivative of covariance with respect to parameters
@@ -134,48 +150,48 @@ Cubic <- R6::R6Class(
       }
 
       lenparams_D <- self$beta_length*self$beta_est + self$s2_est
-      dC_dparams <- array(dim=c(lenparams_D, n, n), data = 0)
+      if (self$useC && Sys.info()[['sysname']] == "Windows") {
+        dC_dparams <- kernel_cubic_dC(X, theta, C_nonug, self$s2_est,
+                                         self$beta_est, lenparams_D, s2*nug, s2)
+      } else {
+        dC_dparams <- array(dim=c(lenparams_D, n, n), data = 0)
 
-      # Deriv for logs2
-      if (self$s2_est) {
-        dC_dparams[lenparams_D,,] <- C * log10 # Deriv for logs2
-      }
+        # Deriv for logs2
+        if (self$s2_est) {
+          dC_dparams[lenparams_D,,] <- C * log10 # Deriv for logs2
+        }
 
-      # Deriv for beta
-      if (self$beta_est) {
-        for (i in seq(1, n-1, 1)) {
-          for (j in seq(i+1, n, 1)) {
-            # tx2 <- sum(theta * (X[i,]-X[j,])^2)
-            # t1 <- sqrt(5 * tx2)
-            # t3 <- C[i,j] * ((1+2*t1/3)/(1+t1+t1^2/3) - 1) * self$sqrt5 * log10
-            # half_over_sqrttx2 <- .5 / sqrt(tx2)
-            h <- X[i,] - X[j,] #x-y
-            d <- h/theta
-            dabs <- abs(d)
-            r <- ifelse(abs(d) <= 0.5, 1-6*d^2+6*abs(d)^3, ifelse(abs(d) <= 1, 2*(1-abs(d))^3, 0))
-            # prod(r)
+        # Deriv for beta
+        if (self$beta_est) {
+          for (i in seq(1, n-1, 1)) {
+            for (j in seq(i+1, n, 1)) {
+              h <- X[i,] - X[j,] #x-y
+              d <- h/theta
+              dabs <- abs(d)
+              r <- ifelse(abs(d) <= 0.5,
+                          1-6*d^2+6*abs(d)^3,
+                          ifelse(abs(d) <= 1,
+                                 2*(1-abs(d))^3,
+                                 0))
+              # prod(r)
+              for (k in 1:length(beta)) {
+                drk_ddk <- sign(d[k]) * ifelse(dabs[k] <= 0.5,
+                                               -12*dabs[k]+18*dabs[k]^2,
+                                               ifelse(dabs[k] <= 1,
+                                                      -6*(1-dabs[k])^2, 0))
+                dC_dparams[k,i,j] <- (s2 * log10 * (-h[k]) / theta[k] *
+                                        drk_ddk * prod(r[-k]))
+                dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+              }
+            }
+          }
+          for (i in seq(1, n, 1)) { # Get diagonal set to zero
             for (k in 1:length(beta)) {
-              # dt1dbk <- half_over_sqrttx2 * (X[i,k] - X[j,k])^2
-              # # drk_dbk
-              # drk_ddk <- ifelse(d[k]>=0,
-              #                   ifelse(d[k] <= 0.5,  -12*d[k]+18*d[k]^2, ifelse(d[k] <= 1,  -6*(1-d[k])^2, 0)),
-              #                   ifelse(d[k] >= -0.5, -12*d[k]-18*d[k]^2, ifelse(d[k] >= -1, -6*(1+d[k])^2, 0)))
-              drk_ddk <- sign(d[k]) * ifelse(dabs[k] <= 0.5,
-                                             -12*dabs[k]+18*dabs[k]^2,
-                                             ifelse(dabs[k] <= 1,  -6*(1-dabs[k])^2, 0))
-              # dC_dparams[k,i,j] <- s2 * log10 * theta[k] * (-h[k]/theta[k]^2) * drk_ddk * prod(r[-k])
-              dC_dparams[k,i,j] <- s2 * log10 * (-h[k]) /theta[k] * drk_ddk * prod(r[-k])
-              dC_dparams[k,j,i] <- dC_dparams[k,i,j]
+              dC_dparams[k,i,i] <- 0
             }
           }
         }
-        for (i in seq(1, n, 1)) { # Get diagonal set to zero
-          for (k in 1:length(beta)) {
-            dC_dparams[k,i,i] <- 0
-          }
-        }
       }
-
       return(dC_dparams)
     },
     #' @description Derivative of covariance with respect to X
@@ -185,19 +201,35 @@ Cubic <- R6::R6Class(
     #' @param beta log of theta
     #' @param s2 Variance parameter
     dC_dx = function(XX, X, theta, beta=self$beta, s2=self$s2) {
-      stop("cubic dC_dparams not implemented")
+      # stop("cubic dC_dparams not implemented")
       if (missing(theta)) {theta <- 10^beta}
       if (!is.matrix(XX)) {stop()}
-      d <- ncol(XX)
-      if (ncol(X) != d) {stop()}
+      D <- ncol(XX)
+      if (ncol(X) != D) {stop()}
       n <- nrow(X)
       nn <- nrow(XX)
-      dC_dx <- array(NA, dim=c(nn, d, n))
+      dC_dx <- array(NA, dim=c(nn, D, n))
       for (i in 1:nn) {
-        for (j in 1:d) {
-          for (k in 1:n) {
-            r <- sqrt(sum(theta * (XX[i,] - X[k,]) ^ 2))
-            dC_dx[i, j, k] <- (-5*r/3 - 5/3*self$sqrt5*r^2) * s2 * exp(-self$sqrt5 * r) * theta[j] * (XX[i, j] - X[k, j]) / r
+        for (k in 1:n) {
+          h <- XX[i,] - X[k,]
+          d <- h/theta
+          r <- ifelse(abs(d) <= 0.5,
+                      1-6*d^2+6*abs(d)^3,
+                      ifelse(abs(d) <= 1,
+                             2*(1-abs(d))^3,
+                             0))
+          # k <- prod(r) * s2
+
+          dr_dd <- ifelse(abs(d) <= 0.5,
+                          # 1-6*d^2+6*abs(d)^3,
+                          -12*d + 18*d^2*sign(d),
+                          ifelse(abs(d) <= 1,
+                                 # 2*(1-abs(d))^3,
+                                 -6*(1-abs(d))^2*sign(d),
+                                 0))
+          for (j in 1:D) {
+            prodrj <- if (D==1) {1} else {prod(r[-j])}
+            dC_dx[i, j, k] <- s2 * prodrj * dr_dd[j] / theta[j]
           }
         }
       }

@@ -58,6 +58,17 @@ trend_LM <- R6::R6Class(
     initialize = function(D, m = rep(0,D), m_lower=rep(-Inf,D),
                           m_upper=rep(Inf,D), m_est=rep(TRUE,D),
                           b = 0, b_lower=-Inf, b_upper=Inf, b_est=TRUE) {
+      stopifnot(is.numeric(D), length(D)==1)
+      stopifnot(is.numeric(m), length(m)==D)
+      stopifnot(is.numeric(m_lower), length(m_lower)==D)
+      stopifnot(is.numeric(m_upper), length(m_upper)==D)
+      stopifnot(m_lower <= m_upper)
+      stopifnot(is.logical(m_est), length(m_est)==D, m_est | !m_est)
+      stopifnot(is.numeric(b), length(b)==1)
+      stopifnot(is.numeric(b_lower), length(b_lower)==1)
+      stopifnot(is.numeric(b_upper), length(b_upper)==1)
+      stopifnot(b_lower <= b_upper)
+      stopifnot(is.logical(b_est), length(b_est)==1, b_est || !b_est)
       self$D <- D
       self$m <- m
       self$m_lower <- m_lower
@@ -105,35 +116,58 @@ trend_LM <- R6::R6Class(
     },
     #' @description Get parameter initial point for optimization
     #' @param jitter Not used
-    #' @param trend_est If the trend should be estimated.
-    param_optim_start = function(jitter=FALSE, trend_est) {
-      tr <- c(self$b, self$m)
-      if (jitter) {
-        tr <- tr + rnorm(length(tr), 0, 1)
-      }
+    #' @param b_est If the mean should be estimated.
+    #' @param m_est If the linear terms should be estimated.
+    param_optim_start = function(jitter=FALSE,
+                                 b_est=self$b_est, m_est=self$m_est) {
+      # tr <- c(self$b, self$m)
+      tr <- c(
+        self$b[b_est] + if (jitter) {rnorm(1)} else {0},
+        self$m[m_est] +
+          if (jitter) {rnorm(length(self$m[m_est]))} else {0}
+      )
+      # if (jitter) {
+      #   tr <- tr + rnorm(length(tr), 0, 1)
+      # }
       tr
     },
     #' @description Get parameter initial point for optimization
     #' @param jitter Not used
-    #' @param trend_est If the trend should be estimated.
-    param_optim_start0 = function(jitter, trend_est) {
-      c(self$b, self$m)
+    #' @param b_est If the mean should be estimated.
+    #' @param m_est If the linear terms should be estimated.
+    param_optim_start0 = function(jitter=FALSE,
+                                  b_est=self$b_est, m_est=self$m_est) {
+      # c(self$b, self$m)
+      c(
+        (0)[b_est] + if (jitter) {rnorm(1)} else {0},
+        rep(0, self$D)[m_est] +
+          if (jitter) {rnorm(length(self$m[m_est]))} else {0}
+      )
     },
     #' @description Get parameter lower bounds for optimization
-    #' @param trend_est If the trend should be estimated.
-    param_optim_lower = function(trend_est) {
-      c(self$b_lower, self$m_lower)
+    #' @param b_est If the mean should be estimated.
+    #' @param m_est If the linear terms should be estimated.
+    param_optim_lower = function(b_est=self$b_est, m_est=self$m_est) {
+      # c(self$b_lower, self$m_lower)
+      c(self$b_lower[b_est], self$m_lower[m_est])
     },
     #' @description Get parameter upper bounds for optimization
-    #' @param trend_est If the trend should be estimated.
-    param_optim_upper = function(trend_est) {
-      c(self$b_upper, self$m_upper)
+    #' @param b_est If the mean should be estimated.
+    #' @param m_est If the linear terms should be estimated.
+    param_optim_upper = function(b_est=self$b_est, m_est=self$m_est) {
+      # c(self$b_upper, self$m_upper)
+      c(self$b_upper[b_est], self$m_upper[m_est])
     },
     #' @description Set parameters after optimization
     #' @param optim_out Output from optim
     set_params_from_optim = function(optim_out) {
-      self$b <- optim_out[1]
-      self$m <- optim_out[2:(self$D+1)]
+      stopifnot(length(optim_out) == self$b_est + sum(self$m_est))
+      if (self$b_est) {
+        self$b <- optim_out[1]
+      }
+      if (any(self$m_est)) {
+        self$m <- optim_out[(1+self$b_est):(1+self$b_est + sum(self$m_est) - 1)]
+      }
     }
   )
 )

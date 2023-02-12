@@ -49,6 +49,9 @@ gp <- GauPro_kernel_model_LOO$new(X=x, Z=y, kernel=Matern52)
 \if{html}{\out{
 <details><summary>Inherited methods</summary>
 <ul>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="AIC"><a href='../../GauPro/html/GauPro.html#method-GauPro-AIC'><code>GauPro::GauPro$AIC()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="AugmentedEI"><a href='../../GauPro/html/GauPro.html#method-GauPro-AugmentedEI'><code>GauPro::GauPro$AugmentedEI()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="CorrectedEI"><a href='../../GauPro/html/GauPro.html#method-GauPro-CorrectedEI'><code>GauPro::GauPro$CorrectedEI()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="EI"><a href='../../GauPro/html/GauPro.html#method-GauPro-EI'><code>GauPro::GauPro$EI()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="KG"><a href='../../GauPro/html/GauPro.html#method-GauPro-KG'><code>GauPro::GauPro$KG()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="cool1Dplot"><a href='../../GauPro/html/GauPro.html#method-GauPro-cool1Dplot'><code>GauPro::GauPro$cool1Dplot()</code></a></span></li>
@@ -64,15 +67,15 @@ gp <- GauPro_kernel_model_LOO$new(X=x, Z=y, kernel=Matern52)
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="grad_norm2_mean"><a href='../../GauPro/html/GauPro.html#method-GauPro-grad_norm2_mean'><code>GauPro::GauPro$grad_norm2_mean()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="grad_norm2_sample"><a href='../../GauPro/html/GauPro.html#method-GauPro-grad_norm2_sample'><code>GauPro::GauPro$grad_norm2_sample()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="grad_sample"><a href='../../GauPro/html/GauPro.html#method-GauPro-grad_sample'><code>GauPro::GauPro$grad_sample()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="gradpredvar"><a href='../../GauPro/html/GauPro.html#method-GauPro-gradpredvar'><code>GauPro::GauPro$gradpredvar()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="hessian"><a href='../../GauPro/html/GauPro.html#method-GauPro-hessian'><code>GauPro::GauPro$hessian()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="importance"><a href='../../GauPro/html/GauPro.html#method-GauPro-importance'><code>GauPro::GauPro$importance()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="loglikelihood"><a href='../../GauPro/html/GauPro.html#method-GauPro-loglikelihood'><code>GauPro::GauPro$loglikelihood()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="maxEI"><a href='../../GauPro/html/GauPro.html#method-GauPro-maxEI'><code>GauPro::GauPro$maxEI()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="maxEIwithfactors"><a href='../../GauPro/html/GauPro.html#method-GauPro-maxEIwithfactors'><code>GauPro::GauPro$maxEIwithfactors()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="maxEIwithfactorsordiscrete"><a href='../../GauPro/html/GauPro.html#method-GauPro-maxEIwithfactorsordiscrete'><code>GauPro::GauPro$maxEIwithfactorsordiscrete()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="maxqEI"><a href='../../GauPro/html/GauPro.html#method-GauPro-maxqEI'><code>GauPro::GauPro$maxqEI()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="optim"><a href='../../GauPro/html/GauPro.html#method-GauPro-optim'><code>GauPro::GauPro$optim()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="optimRestart"><a href='../../GauPro/html/GauPro.html#method-GauPro-optimRestart'><code>GauPro::GauPro$optimRestart()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="optimize_fn"><a href='../../GauPro/html/GauPro.html#method-GauPro-optimize_fn'><code>GauPro::GauPro$optimize_fn()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="param_optim_lower"><a href='../../GauPro/html/GauPro.html#method-GauPro-param_optim_lower'><code>GauPro::GauPro$param_optim_lower()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="param_optim_start"><a href='../../GauPro/html/GauPro.html#method-GauPro-param_optim_start'><code>GauPro::GauPro$param_optim_start()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="param_optim_start0"><a href='../../GauPro/html/GauPro.html#method-GauPro-param_optim_start0'><code>GauPro::GauPro$param_optim_start0()</code></a></span></li>
@@ -83,6 +86,7 @@ gp <- GauPro_kernel_model_LOO$new(X=x, Z=y, kernel=Matern52)
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="plot2D"><a href='../../GauPro/html/GauPro.html#method-GauPro-plot2D'><code>GauPro::GauPro$plot2D()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="plotLOO"><a href='../../GauPro/html/GauPro.html#method-GauPro-plotLOO'><code>GauPro::GauPro$plotLOO()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="plot_track_optim"><a href='../../GauPro/html/GauPro.html#method-GauPro-plot_track_optim'><code>GauPro::GauPro$plot_track_optim()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="plotkernel"><a href='../../GauPro/html/GauPro.html#method-GauPro-plotkernel'><code>GauPro::GauPro$plotkernel()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="plotmarginal"><a href='../../GauPro/html/GauPro.html#method-GauPro-plotmarginal'><code>GauPro::GauPro$plotmarginal()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="plotmarginalrandom"><a href='../../GauPro/html/GauPro.html#method-GauPro-plotmarginalrandom'><code>GauPro::GauPro$plotmarginalrandom()</code></a></span></li>
 <li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro" data-id="pred"><a href='../../GauPro/html/GauPro.html#method-GauPro-pred'><code>GauPro::GauPro$pred()</code></a></span></li>

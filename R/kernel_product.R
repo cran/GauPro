@@ -71,7 +71,8 @@ kernel_product <- R6::R6Class(
     #' @description Initialize kernel
     #' @param k1 Kernel 1
     #' @param k2 Kernel 2
-    initialize = function(k1, k2) {
+    #' @param useC Should C code used? Not applicable for kernel product.
+    initialize = function(k1, k2, useC=TRUE) {
       self$k1 <- k1
       self$k2 <- k2
       # self$k1_param_length <- length(self$k1$param_optim_start())
@@ -85,6 +86,7 @@ kernel_product <- R6::R6Class(
       if (self$k1$s2_est & self$k2$s2_est) {
         self$k2$s2_est <- FALSE
       }
+      self$useC <- useC # Not used
     },
     #' @description Calculate covariance between two points
     #' @param x vector.
@@ -98,7 +100,8 @@ kernel_product <- R6::R6Class(
       } else {
         params1 <- params[1:self$k1pl]
         params2 <- params[(self$k1pl+1):(self$k1pl+self$k2pl)]
-        self$k1$k(x=x, y=y, params=params1) * self$k2$k(x=x, y=y, params=params2)
+        self$k1$k(x=x, y=y, params=params1) *
+          self$k2$k(x=x, y=y, params=params2)
       }
     },
     #' @description Starting point for parameters for optimization
@@ -106,16 +109,20 @@ kernel_product <- R6::R6Class(
     #' @param y Output
     param_optim_start = function(jitter=F, y) {
       # Use current values for theta, partial MLE for s2
-      # vec <- c(log(self$theta, 10), log(sum((y - mu) * solve(R, y - mu)) / n), 10)
-      c(self$k1$param_optim_start(jitter=jitter), self$k2$param_optim_start(jitter=jitter))
+      # vec <- c(log(self$theta, 10),
+      #  log(sum((y - mu) * solve(R, y - mu)) / n), 10)
+      c(self$k1$param_optim_start(jitter=jitter),
+        self$k2$param_optim_start(jitter=jitter))
     },
     #' @description Starting point for parameters for optimization
     #' @param jitter Should there be a jitter?
     #' @param y Output
     param_optim_start0 = function(jitter=F, y) {
       # Use 0 for theta, partial MLE for s2
-      # vec <- c(rep(0, length(self$theta)), log(sum((y - mu) * solve(R, y - mu)) / n), 10)
-      c(self$k1$param_optim_start0(jitter=jitter), self$k2$param_optim_start0(jitter=jitter))
+      # vec <- c(rep(0, length(self$theta)),
+      #  log(sum((y - mu) * solve(R, y - mu)) / n), 10)
+      c(self$k1$param_optim_start0(jitter=jitter),
+        self$k2$param_optim_start0(jitter=jitter))
     },
     #' @description Lower bounds of parameters for optimization
     param_optim_lower = function() {
@@ -132,7 +139,7 @@ kernel_product <- R6::R6Class(
       self$k1$set_params_from_optim(optim_out=oo1)
       oo2 <- optim_out[(self$k1pl+1):(self$k1pl+self$k2pl)]
       self$k2$set_params_from_optim(optim_out=oo2)
-      self$s2 <- self$k1$s2 + self$k2$s2
+      self$s2 <- self$k1$s2 * self$k2$s2
     },
     #' @description Derivative of covariance with respect to parameters
     #' @param params Kernel parameters
@@ -164,14 +171,16 @@ kernel_product <- R6::R6Class(
       # Multiply beta params by opposite C_nonug
       n_beta1 <- length(params1) - self$k1$s2_est
       if (n_beta1 > 0) { # At least 1 beta param
-        # out1[[2]][[1:n_beta1]] <- lapply(out1[[2]][1:n_beta1], function(m) {m * C2_nonug})
+        # out1[[2]][[1:n_beta1]] <- lapply(out1[[2]][1:n_beta1],
+        #  function(m) {m * C2_nonug})
         for (i in 1:n_beta1) {
           out1[[2]][i,,] <- out1[[2]][i,,] * C2_nonug
         }
       }
       n_beta2 <- length(params2) - self$k2$s2_est
       if (n_beta2 > 0) { # At least 1 beta param
-        # out2[[2]][[1:n_beta2]] <- lapply(out2[[2]][1:n_beta2], function(m) {m * C1_nonug})
+        # out2[[2]][[1:n_beta2]] <- lapply(out2[[2]][1:n_beta2],
+        #  function(m) {m * C1_nonug})
         for (i in 1:n_beta2) {
           out2[[2]][i,,] <- out2[[2]][i,,] * C1_nonug
         }
@@ -197,7 +206,7 @@ kernel_product <- R6::R6Class(
     #' @param params Kernel parameters
     #' @param X matrix of points in rows
     #' @param nug Value of nugget
-    C_dC_dparams = function(params=NULL, X, nug) {#browser(text = "Make sure all in one list")
+    C_dC_dparams = function(params=NULL, X, nug) {
       params1 <- params[1:self$k1pl]
       params2 <- params[(self$k1pl+1):(self$k1pl+self$k2pl)]
       s2_1 <- self$k1$s2_from_params(params1)
@@ -215,14 +224,16 @@ kernel_product <- R6::R6Class(
       # Multiply beta params by opposite C_nonug
       n_beta1 <- length(params1) - self$k1$s2_est
       if (n_beta1 > 0) { # At least 1 beta param
-        # out1[[2]][[1:n_beta1]] <- lapply(out1[[2]][1:n_beta1], function(m) {m * C2_nonug})
+        # out1[[2]][[1:n_beta1]] <- lapply(out1[[2]][1:n_beta1],
+        #  function(m) {m * C2_nonug})
         for (i in 1:n_beta1) {
           out1[[2]][i,,] <- out1[[2]][i,,] * C2_nonug
         }
       }
       n_beta2 <- length(params2) - self$k2$s2_est
       if (n_beta2 > 0) { # At least 1 beta param
-        # out2[[2]][[1:n_beta2]] <- lapply(out2[[2]][1:n_beta2], function(m) {m * C1_nonug})
+        # out2[[2]][[1:n_beta2]] <- lapply(out2[[2]][1:n_beta2],
+        #  function(m) {m * C1_nonug})
         for (i in 1:n_beta2) {
           out2[[2]][i,,] <- out2[[2]][i,,] * C1_nonug
         }
@@ -266,7 +277,8 @@ kernel_product <- R6::R6Class(
     s2_from_params = function(params, s2_est=self$s2_est) {
       params1 <- params[1:self$k1pl]
       params2 <- params[(self$k1pl+1):(self$k1pl+self$k2pl)]
-      self$k1$s2_from_params(params=params1) * self$k2$s2_from_params(params=params2)
+      self$k1$s2_from_params(params=params1) *
+        self$k2$s2_from_params(params=params2)
     },
     #' @description Print this object
     print = function() {

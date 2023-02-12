@@ -3,7 +3,7 @@
 \docType{class}
 \name{GauPro_kernel_model}
 \alias{GauPro_kernel_model}
-\title{GauPro model that uses kernels}
+\title{Gaussian process model with kernel}
 \format{
 \code{\link{R6Class}} object.
 }
@@ -11,13 +11,12 @@
 Object of \code{\link{R6Class}} with methods for fitting GP model.
 }
 \description{
-GauPro model that uses kernels
-
-GauPro model that uses kernels
-}
-\details{
 Class providing object with methods for fitting a GP model.
 Allows for different kernel and trend functions to be used.
+The object is an R6 object with many methods that can be called.
+
+`gpkm()` is equivalent to `GauPro_kernel_model$new()`, but is easier to type
+and gives parameter autocomplete suggestions.
 }
 \section{Methods}{
 
@@ -39,8 +38,7 @@ model, adding new data if given, then running optimization again.}
 n <- 12
 x <- matrix(seq(0,1,length.out = n), ncol=1)
 y <- sin(2*pi*x) + rnorm(n,0,1e-1)
-gp <- GauPro_kernel_model$new(X=x, Z=y, kernel=Gaussian$new(1),
-                              parallel=FALSE)
+gp <- GauPro_kernel_model$new(X=x, Z=y, kernel="gauss")
 gp$predict(.454)
 gp$plot1D()
 gp$cool1Dplot()
@@ -157,9 +155,11 @@ using the formula}
 \item \href{#method-GauPro-plot2D}{\code{GauPro_kernel_model$plot2D()}}
 \item \href{#method-GauPro-plotmarginal}{\code{GauPro_kernel_model$plotmarginal()}}
 \item \href{#method-GauPro-plotmarginalrandom}{\code{GauPro_kernel_model$plotmarginalrandom()}}
+\item \href{#method-GauPro-plotkernel}{\code{GauPro_kernel_model$plotkernel()}}
 \item \href{#method-GauPro-plotLOO}{\code{GauPro_kernel_model$plotLOO()}}
 \item \href{#method-GauPro-plot_track_optim}{\code{GauPro_kernel_model$plot_track_optim()}}
 \item \href{#method-GauPro-loglikelihood}{\code{GauPro_kernel_model$loglikelihood()}}
+\item \href{#method-GauPro-AIC}{\code{GauPro_kernel_model$AIC()}}
 \item \href{#method-GauPro-get_optim_functions}{\code{GauPro_kernel_model$get_optim_functions()}}
 \item \href{#method-GauPro-param_optim_lower}{\code{GauPro_kernel_model$param_optim_lower()}}
 \item \href{#method-GauPro-param_optim_upper}{\code{GauPro_kernel_model$param_optim_upper()}}
@@ -185,13 +185,15 @@ using the formula}
 \item \href{#method-GauPro-grad_norm2_dist}{\code{GauPro_kernel_model$grad_norm2_dist()}}
 \item \href{#method-GauPro-grad_norm2_sample}{\code{GauPro_kernel_model$grad_norm2_sample()}}
 \item \href{#method-GauPro-hessian}{\code{GauPro_kernel_model$hessian()}}
+\item \href{#method-GauPro-gradpredvar}{\code{GauPro_kernel_model$gradpredvar()}}
 \item \href{#method-GauPro-sample}{\code{GauPro_kernel_model$sample()}}
+\item \href{#method-GauPro-optimize_fn}{\code{GauPro_kernel_model$optimize_fn()}}
 \item \href{#method-GauPro-EI}{\code{GauPro_kernel_model$EI()}}
 \item \href{#method-GauPro-maxEI}{\code{GauPro_kernel_model$maxEI()}}
-\item \href{#method-GauPro-maxEIwithfactors}{\code{GauPro_kernel_model$maxEIwithfactors()}}
-\item \href{#method-GauPro-maxEIwithfactorsordiscrete}{\code{GauPro_kernel_model$maxEIwithfactorsordiscrete()}}
 \item \href{#method-GauPro-maxqEI}{\code{GauPro_kernel_model$maxqEI()}}
 \item \href{#method-GauPro-KG}{\code{GauPro_kernel_model$KG()}}
+\item \href{#method-GauPro-AugmentedEI}{\code{GauPro_kernel_model$AugmentedEI()}}
+\item \href{#method-GauPro-CorrectedEI}{\code{GauPro_kernel_model$CorrectedEI()}}
 \item \href{#method-GauPro-importance}{\code{GauPro_kernel_model$importance()}}
 \item \href{#method-GauPro-print}{\code{GauPro_kernel_model$print()}}
 \item \href{#method-GauPro-summary}{\code{GauPro_kernel_model$summary()}}
@@ -273,6 +275,10 @@ parameters.}
 \item{\code{track_optim}}{Should it track the parameters evaluated
 while optimizing?}
 
+\item{\code{formula}}{Formula for the data if giving in a data frame.}
+
+\item{\code{data}}{Data frame of data. Use in conjunction with formula.}
+
 \item{\code{...}}{Not used}
 }
 \if{html}{\out{</div>}}
@@ -318,7 +324,8 @@ Predict for a matrix of points
   se.fit = F,
   covmat = F,
   split_speed = F,
-  mean_dist = FALSE
+  mean_dist = FALSE,
+  return_df = TRUE
 )}\if{html}{\out{</div>}}
 }
 
@@ -334,6 +341,9 @@ Predict for a matrix of points
 \item{\code{split_speed}}{Should the matrix be split for faster predictions?}
 
 \item{\code{mean_dist}}{Should the error be for the distribution of the mean?}
+
+\item{\code{return_df}}{When returning se.fit, should it be returned in
+a data frame? Otherwise it will be a list, which is faster.}
 }
 \if{html}{\out{</div>}}
 }
@@ -349,7 +359,8 @@ Predict for a matrix of points
   se.fit = F,
   covmat = F,
   split_speed = F,
-  mean_dist = FALSE
+  mean_dist = FALSE,
+  return_df = TRUE
 )}\if{html}{\out{</div>}}
 }
 
@@ -365,6 +376,9 @@ Predict for a matrix of points
 \item{\code{split_speed}}{Should the matrix be split for faster predictions?}
 
 \item{\code{mean_dist}}{Should the error be for the distribution of the mean?}
+
+\item{\code{return_df}}{When returning se.fit, should it be returned in
+a data frame? Otherwise it will be a list, which is faster.}
 }
 \if{html}{\out{</div>}}
 }
@@ -394,7 +408,7 @@ Predict for a matrix of points
 \item{\code{covmat}}{Should covariance matrix be returned?}
 
 \item{\code{return_df}}{When returning se.fit, should it be returned in
-a data frame?}
+a data frame? Otherwise it will be a list, which is faster.}
 
 \item{\code{mean_dist}}{Should the error be for the distribution of the mean?}
 }
@@ -581,13 +595,14 @@ Make cool 1D plot
 \if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$cool1Dplot(
   n2 = 20,
   nn = 201,
-  col2 = "gray",
+  col2 = "green",
   xlab = "x",
   ylab = "y",
   xmin = NULL,
   xmax = NULL,
   ymin = NULL,
-  ymax = NULL
+  ymax = NULL,
+  gg = TRUE
 )}\if{html}{\out{</div>}}
 }
 
@@ -611,6 +626,8 @@ Make cool 1D plot
 \item{\code{ymin}}{ymin}
 
 \item{\code{ymax}}{ymax}
+
+\item{\code{gg}}{Should ggplot2 be used to make plot?}
 }
 \if{html}{\out{</div>}}
 }
@@ -631,7 +648,8 @@ Make 1D plot
   xmin = NULL,
   xmax = NULL,
   ymin = NULL,
-  ymax = NULL
+  ymax = NULL,
+  gg = TRUE
 )}\if{html}{\out{</div>}}
 }
 
@@ -657,6 +675,8 @@ Make 1D plot
 \item{\code{ymin}}{ymin}
 
 \item{\code{ymax}}{ymax}
+
+\item{\code{gg}}{Should ggplot2 be used to make plot?}
 }
 \if{html}{\out{</div>}}
 }
@@ -667,9 +687,23 @@ Make 1D plot
 \subsection{Method \code{plot2D()}}{
 Make 2D plot
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plot2D()}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plot2D(se = FALSE, mean = TRUE, horizontal = TRUE, n = 50)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{se}}{Should the standard error of prediction be plotted?}
+
+\item{\code{mean}}{Should the mean be plotted?}
+
+\item{\code{horizontal}}{If plotting mean and se, should they be next to each
+other?}
+
+\item{\code{n}}{Number of points along each dimension}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro-plotmarginal"></a>}}
@@ -678,14 +712,16 @@ Make 2D plot
 Plot marginal. For each input, hold all others at a constant
 value and adjust it along it's range to see how the prediction changes.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotmarginal(pt = colMeans(self$X))}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotmarginal(npt = 5, ncol = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{pt}}{What point to use as a center. All values except the one being
-plotted are held constant at this value.}
+\item{\code{npt}}{Number of lines to make. Each line represents changing a
+single variable while holding the others at the same values.}
+
+\item{\code{ncol}}{Number of columnsfor the plot}
 }
 \if{html}{\out{</div>}}
 }
@@ -696,13 +732,32 @@ plotted are held constant at this value.}
 \subsection{Method \code{plotmarginalrandom()}}{
 Plot marginal prediction for random sample of inputs
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotmarginalrandom(n = 100)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotmarginalrandom(npt = 100, ncol = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{n}}{Number of random points to evaluate}
+\item{\code{npt}}{Number of random points to evaluate}
+
+\item{\code{ncol}}{Number of columns in the plot}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-plotkernel"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-plotkernel}{}}}
+\subsection{Method \code{plotkernel()}}{
+Plot the kernel
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$plotkernel(X = self$X)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{X}}{X matrix for kernel plot}
 }
 \if{html}{\out{</div>}}
 }
@@ -753,6 +808,16 @@ Calculate loglikelihood of parameters
 }
 \if{html}{\out{</div>}}
 }
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-AIC"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-AIC}{}}}
+\subsection{Method \code{AIC()}}{
+AIC (Akaike information criterion)
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$AIC()}\if{html}{\out{</div>}}
+}
+
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro-get_optim_functions"></a>}}
@@ -1354,6 +1419,23 @@ Calculate Hessian
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-gradpredvar"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-gradpredvar}{}}}
+\subsection{Method \code{gradpredvar()}}{
+Calculate gradient of the predictive variance
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$gradpredvar(XX)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{XX}}{points to calculate at}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro-sample"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro-sample}{}}}
 \subsection{Method \code{sample()}}{
@@ -1373,12 +1455,65 @@ Sample at rows of XX
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-optimize_fn"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-optimize_fn}{}}}
+\subsection{Method \code{optimize_fn()}}{
+Optimize any function of the GP prediction over the
+valid input space.
+If there are inputs that should only be optimized over a discrete set
+of values, specify `mopar` for all parameters.
+Factor inputs will be handled automatically.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$optimize_fn(
+  fn = NULL,
+  lower = apply(self$X, 2, min),
+  upper = apply(self$X, 2, max),
+  n0 = 100,
+  minimize = FALSE,
+  fn_args = NULL,
+  gr = NULL,
+  fngr = NULL,
+  mopar = NULL,
+  groupeval = FALSE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{fn}}{Function to optimize}
+
+\item{\code{lower}}{Lower bounds to search within}
+
+\item{\code{upper}}{Upper bounds to search within}
+
+\item{\code{n0}}{Number of points to evaluate in initial stage}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{fn_args}}{Arguments to pass to the function fn.}
+
+\item{\code{gr}}{Gradient of function to optimize.}
+
+\item{\code{fngr}}{Function that returns list with names elements "fn" for the
+function value and "gr" for the gradient. Useful when it is slow to
+evaluate and fn/gr would duplicate calculations if done separately.}
+
+\item{\code{mopar}}{List of parameters using mixopt}
+
+\item{\code{groupeval}}{Can a matrix of points be evaluated? Otherwise just
+a single point at a time.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro-EI"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro-EI}{}}}
 \subsection{Method \code{EI()}}{
 Calculate expected improvement
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$EI(x, minimize = FALSE, eps = 0)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$EI(x, minimize = FALSE, eps = 0, return_grad = FALSE, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -1390,6 +1525,10 @@ be calculated}
 \item{\code{minimize}}{Are you trying to minimize the output?}
 
 \item{\code{eps}}{Exploration parameter}
+
+\item{\code{return_grad}}{Should the gradient be returned?}
+
+\item{\code{...}}{Additional args}
 }
 \if{html}{\out{</div>}}
 }
@@ -1398,7 +1537,9 @@ be calculated}
 \if{html}{\out{<a id="method-GauPro-maxEI"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro-maxEI}{}}}
 \subsection{Method \code{maxEI()}}{
-Find the point that maximizes the expected improvement
+Find the point that maximizes the expected improvement.
+If there are inputs that should only be optimized over a discrete set
+of values, specify `mopar` for all parameters.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxEI(
   lower = apply(self$X, 2, min),
@@ -1407,8 +1548,9 @@ Find the point that maximizes the expected improvement
   minimize = FALSE,
   eps = 0,
   dontconvertback = FALSE,
-  discreteinputs = NULL,
-  mopar = NULL
+  EItype = "corrected",
+  mopar = NULL,
+  usegrad = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -1428,59 +1570,16 @@ Find the point that maximizes the expected improvement
 \item{\code{dontconvertback}}{If data was given in with a formula, should
 it converted back to the original scale?}
 
+\item{\code{EItype}}{Type of EI to calculate. One of "EI", "Augmented",
+or "Corrected"}
+
 \item{\code{mopar}}{List of parameters using mixopt}
+
+\item{\code{usegrad}}{Should the gradient be used when optimizing?
+Can make it faster.}
 }
 \if{html}{\out{</div>}}
 }
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-GauPro-maxEIwithfactors"></a>}}
-\if{latex}{\out{\hypertarget{method-GauPro-maxEIwithfactors}{}}}
-\subsection{Method \code{maxEIwithfactors()}}{
-Find the point that maximizes the expected improvement.
-Used whenever one of the inputs is a factor (can only take values 1:n).
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxEIwithfactors(
-  lower = apply(self$X, 2, min),
-  upper = apply(self$X, 2, max),
-  n0 = 100,
-  minimize = FALSE,
-  eps = 0
-)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{lower}}{Lower bounds to search within}
-
-\item{\code{upper}}{Upper bounds to search within}
-
-\item{\code{n0}}{Number of points to evaluate in initial stage}
-
-\item{\code{minimize}}{Are you trying to minimize the output?}
-
-\item{\code{eps}}{Exploration parameter}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-GauPro-maxEIwithfactorsordiscrete"></a>}}
-\if{latex}{\out{\hypertarget{method-GauPro-maxEIwithfactorsordiscrete}{}}}
-\subsection{Method \code{maxEIwithfactorsordiscrete()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxEIwithfactorsordiscrete(
-  lower = apply(self$X, 2, min),
-  upper = apply(self$X, 2, max),
-  n0 = 100,
-  minimize = FALSE,
-  eps = 0,
-  dontconvertback = FALSE,
-  discreteinputs = NULL
-)}\if{html}{\out{</div>}}
-}
-
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro-maxqEI"></a>}}
@@ -1491,12 +1590,13 @@ improvement. Currently only implements the constant liar method.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$maxqEI(
   npoints,
-  method = "CL",
+  method = "pred",
   lower = apply(self$X, 2, min),
   upper = apply(self$X, 2, max),
   n0 = 100,
   minimize = FALSE,
   eps = 0,
+  EItype = "corrected",
   dontconvertback = FALSE,
   mopar = NULL
 )}\if{html}{\out{</div>}}
@@ -1507,7 +1607,11 @@ improvement. Currently only implements the constant liar method.
 \describe{
 \item{\code{npoints}}{Number of points to add}
 
-\item{\code{method}}{Method to use. Can only be "CL" for constant liar.}
+\item{\code{method}}{Method to use for setting the output value for the points
+chosen as a placeholder.
+Can be one of: "CL" for constant liar,
+which uses the best value seen yet; or "pred", which uses the predicted
+value, also called the Believer method in literature.}
 
 \item{\code{lower}}{Lower bounds to search within}
 
@@ -1518,6 +1622,9 @@ improvement. Currently only implements the constant liar method.
 \item{\code{minimize}}{Are you trying to minimize the output?}
 
 \item{\code{eps}}{Exploration parameter}
+
+\item{\code{EItype}}{Type of EI to calculate. One of "EI", "Augmented",
+or "Corrected"}
 
 \item{\code{dontconvertback}}{If data was given in with a formula, should
 it converted back to the original scale?}
@@ -1551,18 +1658,86 @@ Calculate Knowledge Gradient
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-AugmentedEI"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-AugmentedEI}{}}}
+\subsection{Method \code{AugmentedEI()}}{
+Calculated Augmented EI
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$AugmentedEI(
+  x,
+  minimize = FALSE,
+  eps = 0,
+  return_grad = F,
+  ...
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{Vector to calculate EI of, or matrix for whose rows it should
+be calculated}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{eps}}{Exploration parameter}
+
+\item{\code{return_grad}}{Should the gradient be returned?}
+
+\item{\code{...}}{Additional args}
+
+\item{\code{f}}{The reference max, user shouldn't change this.}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro-CorrectedEI"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro-CorrectedEI}{}}}
+\subsection{Method \code{CorrectedEI()}}{
+Calculated Augmented EI
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$CorrectedEI(
+  x,
+  minimize = FALSE,
+  eps = 0,
+  return_grad = F,
+  ...
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{x}}{Vector to calculate EI of, or matrix for whose rows it should
+be calculated}
+
+\item{\code{minimize}}{Are you trying to minimize the output?}
+
+\item{\code{eps}}{Exploration parameter}
+
+\item{\code{return_grad}}{Should the gradient be returned?}
+
+\item{\code{...}}{Additional args}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro-importance"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro-importance}{}}}
 \subsection{Method \code{importance()}}{
 Feature importance
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$importance(plot = TRUE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{GauPro_kernel_model$importance(plot = TRUE, print_bars = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{plot}}{Should the plot be made?}
+
+\item{\code{print_bars}}{Should the importances be printed as bars?}
 }
 \if{html}{\out{</div>}}
 }

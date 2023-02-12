@@ -74,12 +74,13 @@ Initialize kernel object
   beta_lower = -8,
   beta_upper = 6,
   beta_est = TRUE,
-  alpha_lower = 0,
+  alpha_lower = 1e-08,
   alpha_upper = 2,
   alpha_est = TRUE,
   s2_lower = 1e-08,
   s2_upper = 1e+08,
-  s2_est = TRUE
+  s2_est = TRUE,
+  useC = TRUE
 )}\if{html}{\out{</div>}}
 }
 
@@ -111,6 +112,8 @@ Initialize kernel object
 \item{\code{s2_upper}}{Upper bound for s2}
 
 \item{\code{s2_est}}{Should s2 be estimated?}
+
+\item{\code{useC}}{Should C code used? Much faster if implemented.}
 }
 \if{html}{\out{</div>}}
 }

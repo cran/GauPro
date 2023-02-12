@@ -87,9 +87,9 @@ https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matri
 
 \item{\code{p_est}}{Should p be estimated?}
 
-\item{\code{p_lower}}{Lower bound of logp}
+\item{\code{p_lower}}{Lower bound of p}
 
-\item{\code{p_upper}}{Upper bound of logp}
+\item{\code{p_upper}}{Upper bound of p}
 
 \item{\code{p_length}}{length of p}
 
@@ -108,6 +108,14 @@ https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matri
 \item{\code{nlevels}}{Number of levels for the factor}
 
 \item{\code{latentdim}}{Dimension of embedding space}
+
+\item{\code{pf_to_p_log}}{Logical vector used to convert pf to p}
+
+\item{\code{p_to_pf_inds}}{Vector of indexes used to convert p to pf}
+
+\item{\code{offdiagequal}}{What should offdiagonal values be set to when the
+indices are the same? Use to avoid decomposition errors, similar to
+adding a nugget.}
 }
 \if{html}{\out{</div>}}
 }
@@ -125,13 +133,20 @@ https://stackoverflow.com/questions/27086195/linear-index-upper-triangular-matri
 \item \href{#method-GauPro_kernel_LatentFactorKernel-param_optim_lower}{\code{LatentFactorKernel$param_optim_lower()}}
 \item \href{#method-GauPro_kernel_LatentFactorKernel-param_optim_upper}{\code{LatentFactorKernel$param_optim_upper()}}
 \item \href{#method-GauPro_kernel_LatentFactorKernel-set_params_from_optim}{\code{LatentFactorKernel$set_params_from_optim()}}
+\item \href{#method-GauPro_kernel_LatentFactorKernel-p_to_pf}{\code{LatentFactorKernel$p_to_pf()}}
 \item \href{#method-GauPro_kernel_LatentFactorKernel-s2_from_params}{\code{LatentFactorKernel$s2_from_params()}}
-\item \href{#method-GauPro_kernel_LatentFactorKernel-plot}{\code{LatentFactorKernel$plot()}}
 \item \href{#method-GauPro_kernel_LatentFactorKernel-plotLatent}{\code{LatentFactorKernel$plotLatent()}}
 \item \href{#method-GauPro_kernel_LatentFactorKernel-print}{\code{LatentFactorKernel$print()}}
 \item \href{#method-GauPro_kernel_LatentFactorKernel-clone}{\code{LatentFactorKernel$clone()}}
 }
 }
+\if{html}{\out{
+<details open><summary>Inherited methods</summary>
+<ul>
+<li><span class="pkg-link" data-pkg="GauPro" data-topic="GauPro_kernel" data-id="plot"><a href='../../GauPro/html/GauPro_kernel.html#method-GauPro_kernel-plot'><code>GauPro::GauPro_kernel$plot()</code></a></span></li>
+</ul>
+</details>
+}}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-GauPro_kernel_LatentFactorKernel-new"></a>}}
 \if{latex}{\out{\hypertarget{method-GauPro_kernel_LatentFactorKernel-new}{}}}
@@ -149,7 +164,9 @@ Initialize kernel object
   p_est = TRUE,
   s2_lower = 1e-08,
   s2_upper = 1e+08,
-  s2_est = TRUE
+  s2_est = TRUE,
+  useC = TRUE,
+  offdiagequal = 1 - 1e-06
 )}\if{html}{\out{</div>}}
 }
 
@@ -178,7 +195,13 @@ Initialize kernel object
 
 \item{\code{s2_est}}{Should s2 be estimated?}
 
-\item{\code{p}}{Periodic parameter}
+\item{\code{useC}}{Should C code used? Much faster.}
+
+\item{\code{offdiagequal}}{What should offdiagonal values be set to when the
+indices are the same? Use to avoid decomposition errors, similar to
+adding a nugget.}
+
+\item{\code{p}}{Vector of latent variables}
 }
 \if{html}{\out{</div>}}
 }
@@ -215,7 +238,14 @@ of x with itself.}
 \subsection{Method \code{kone()}}{
 Find covariance of two points
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{LatentFactorKernel$kone(x, y, pf, s2, isdiag = TRUE, offdiagequal = 1 - 1e-06)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{LatentFactorKernel$kone(
+  x,
+  y,
+  pf,
+  s2,
+  isdiag = TRUE,
+  offdiagequal = self$offdiagequal
+)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -292,13 +322,7 @@ Calculate covariance matrix and its derivative
 \subsection{Method \code{dC_dx()}}{
 Derivative of covariance with respect to X
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{LatentFactorKernel$dC_dx(
-  XX,
-  X,
-  logp = self$logp,
-  logalpha = self$logalpha,
-  s2 = self$s2
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{LatentFactorKernel$dC_dx(XX, X, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -308,11 +332,7 @@ Derivative of covariance with respect to X
 
 \item{\code{X}}{matrix of points to take derivative with respect to}
 
-\item{\code{logp}}{log of p}
-
-\item{\code{logalpha}}{log of alpha}
-
-\item{\code{s2}}{Variance parameter}
+\item{\code{...}}{Additional args, not used}
 }
 \if{html}{\out{</div>}}
 }
@@ -341,8 +361,6 @@ Starting point for parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -371,8 +389,6 @@ Starting point for parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -392,8 +408,6 @@ Lower bounds of parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -413,8 +427,6 @@ Upper bounds of parameters for optimization
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-
-\item{\code{alpha_est}}{Is alpha being estimated?}
 }
 \if{html}{\out{</div>}}
 }
@@ -440,8 +452,24 @@ Set parameters from optimization output
 \item{\code{p_est}}{Is p being estimated?}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
+}
+\if{html}{\out{</div>}}
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-GauPro_kernel_LatentFactorKernel-p_to_pf"></a>}}
+\if{latex}{\out{\hypertarget{method-GauPro_kernel_LatentFactorKernel-p_to_pf}{}}}
+\subsection{Method \code{p_to_pf()}}{
+Convert p (short parameter vector) to pf (long parameter
+vector with zeros).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{LatentFactorKernel$p_to_pf(p)}\if{html}{\out{</div>}}
+}
 
-\item{\code{alpha_est}}{Is alpha being estimated?}
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{p}}{Parameter vector}
 }
 \if{html}{\out{</div>}}
 }
@@ -461,22 +489,6 @@ Get s2 from params vector
 \item{\code{params}}{parameter vector}
 
 \item{\code{s2_est}}{Is s2 being estimated?}
-}
-\if{html}{\out{</div>}}
-}
-}
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-GauPro_kernel_LatentFactorKernel-plot"></a>}}
-\if{latex}{\out{\hypertarget{method-GauPro_kernel_LatentFactorKernel-plot}{}}}
-\subsection{Method \code{plot()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{LatentFactorKernel$plot(...)}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{...}}{Not used.}
 }
 \if{html}{\out{</div>}}
 }

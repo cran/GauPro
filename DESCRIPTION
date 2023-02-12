@@ -1,7 +1,7 @@
 Package: GauPro
 Type: Package
 Title: Gaussian Process Fitting
-Version: 0.2.6
+Version: 0.2.7
 Author: Collin Erickson
 Maintainer: Collin Erickson <collinberickson@gmail.com>
 Description: Fits a Gaussian process model to data. Gaussian processes
@@ -14,15 +14,15 @@ Description: Fits a Gaussian process model to data. Gaussian processes
 License: GPL-3
 LinkingTo: Rcpp, RcppArmadillo
 Imports: Rcpp, R6, lbfgs
-RoxygenNote: 7.2.2
+RoxygenNote: 7.2.3
 Suggests: testthat, knitr, rmarkdown, microbenchmark, numDeriv,
-        ContourFunctions, dplyr, ggplot2, ggrepel, lhs, mixopt (>
-        0.1.0), tidyr, MASS
+        ContourFunctions, dplyr, ggplot2, ggrepel, gridExtra, lhs,
+        mixopt (> 0.1.0), splitfngr, tidyr, MASS
 VignetteBuilder: knitr
 URL: https://github.com/CollinErickson/GauPro
 BugReports: https://github.com/CollinErickson/GauPro/issues
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2022-11-22 00:52:45 UTC; colli
+Packaged: 2023-02-11 19:03:01 UTC; colli
 Repository: CRAN
-Date/Publication: 2022-11-24 08:40:02 UTC
+Date/Publication: 2023-02-12 21:32:32 UTC
