@@ -12,7 +12,7 @@
 
 <meta name="author" content="Collin Erickson" />
 
-<meta name="date" content="2023-02-26" />
+<meta name="date" content="2023-04-10" />
 
 <title>Leave-one-out cross-validation and error correction</title>
 
@@ -341,7 +341,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h1 class="title toc-ignore">Leave-one-out cross-validation and error
 correction</h1>
 <h4 class="author">Collin Erickson</h4>
-<h4 class="date">2023-02-26</h4>
+<h4 class="date">2023-04-10</h4>
 
 
 
@@ -380,9 +380,9 @@ multiplication.</p>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  microbenchmark<span class="sc">::</span><span class="fu">microbenchmark</span>(<span class="fu">solve</span>(m1, b1), m1 <span class="sc">%*%</span> b1)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 <pre><code>## Unit: microseconds
-##           expr    min      lq     mean  median      uq    max neval
-##  solve(m1, b1) 1178.4 1290.90 1433.199 1404.85 1510.20 2396.3   100
-##      m1 %*% b1   32.5   34.65   38.329   37.05   40.35   84.9   100</code></pre>
+##           expr      min       lq       mean    median       uq      max neval
+##  solve(m1, b1) 1242.101 1398.751 1509.65801 1500.3510 1603.251 2637.400   100
+##      m1 %*% b1   32.901   37.001   40.89896   38.6505   42.851   95.301   100</code></pre>
 <div id="getting-the-inverse-of-a-submatrix" class="section level3">
 <h3>Getting the inverse of a submatrix</h3>
 <p>Suppose we have a matrix <span class="math inline">\(K\)</span> and
@@ -450,12 +450,12 @@ shortcut.</p>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  microbenchmark<span class="sc">::</span><span class="fu">microbenchmark</span>(<span class="fu">solve</span>(A), E <span class="sc">+</span> E <span class="sc">%*%</span> b <span class="sc">%*%</span> g <span class="sc">/</span> (<span class="dv">1</span><span class="sc">-</span><span class="fu">sum</span>(g<span class="sc">*</span>b)))</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
 <pre><code>## Unit: microseconds
-##                                expr    min      lq     mean  median      uq
-##                            solve(A) 3520.6 4331.40 4633.838 4527.50 4832.55
-##  E + E %*% b %*% g/(1 - sum(g * b))  164.8  188.45  208.312  198.35  213.85
-##     max neval
-##  9375.8   100
-##   483.9   100</code></pre>
+##                                expr      min       lq      mean   median
+##                            solve(A) 3820.001 4617.201 4932.1611 4844.801
+##  E + E %*% b %*% g/(1 - sum(g * b))  109.201  197.201  216.1549  207.001
+##         uq      max neval
+##  5230.7015 8877.901   100
+##   223.4505  356.101   100</code></pre>
 <p>In terms of the covariance matrices already calculated, this is the
 following, where <span class="math inline">\(M_{-i}\)</span> is the
 matrix <span class="math inline">\(M\)</span> with the ith row and
