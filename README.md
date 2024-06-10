@@ -1,3 +1,15 @@
+README
+================
+
+- [GauPro](#gaupro)
+  - [Overview](#overview)
+  - [Installation](#installation)
+  - [Example in 1-Dimension](#example-in-1-dimension)
+  - [Factor data: fitting the `diamonds`
+    dataset](#factor-data-fitting-the-diamonds-dataset)
+    - [Constructing a kernel](#constructing-a-kernel)
+  - [Using kernels](#using-kernels)
+  - [Combining kernels](#combining-kernels)
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
@@ -11,6 +23,8 @@
 [![R-CMD-check](https://github.com/CollinErickson/GauPro/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/CollinErickson/GauPro/actions/workflows/R-CMD-check.yaml)
 [![CRAN RStudio mirror
 downloads](https://cranlogs.r-pkg.org/badges/last-month/GauPro?color=blue)](https://r-pkg.org/pkg/GauPro)
+[![CRAN
+checks](https://badges.cranchecks.info/summary/GauPro.svg)](https://cran.r-project.org/web/checks/check_results_GauPro.html)
 <!-- badges: end -->
 
 ## Overview
@@ -35,7 +49,8 @@ The most up-to-date version can be downloaded from my Github account.
 ## Example in 1-Dimension
 
 This simple shows how to fit the Gaussian process regression model to
-data.
+data. The function `gpkm` creates a Gaussian process kernel model fit to
+the given data.
 
 ``` r
 library(GauPro)
@@ -46,7 +61,7 @@ n <- 12
 x <- seq(0, 1, length.out = n)
 y <- sin(6*x^.8) + rnorm(n,0,1e-1)
 gp <- gpkm(x, y)
-#> Argument 'kernel' is missing. It has been set to 'matern52'. See documentation for more details.
+#> * Argument 'kernel' is missing. It has been set to 'matern52'. See documentation for more details.
 ```
 
 Plotting the model helps us understand how accurate the model is and how
@@ -72,7 +87,7 @@ library(ggplot2)
 diamonds_subset <- diamonds[sample(1:nrow(diamonds), 60), ]
 dm <- gpkm(price ~ carat + cut + color + clarity + depth,
            diamonds_subset)
-#> Argument 'kernel' is missing. It has been set to 'matern52'. See documentation for more details.
+#> * Argument 'kernel' is missing. It has been set to 'matern52'. See documentation for more details.
 ```
 
 Calling `summary` on the model gives details about the model, including
@@ -111,6 +126,42 @@ plot(dm)
 
 ![](tools/README-plot_dm-1.png)<!-- -->
 
+### Constructing a kernel
+
+In this case, the kernel was chosen automatically by looking at which
+dimensions were continuous and which were discrete, and then using a
+Matern 5/2 on the continuous dimensions (1,5), and separate ordered
+factor kernels on the other dimensions since those columns in the data
+frame are all ordinal factors. We can construct our own kernel using
+products and sums of any kernels, making sure that the continuous
+kernels ignore the factor dimensions.
+
+Suppose we want to construct a kernel for this example that uses the
+power exponential kernel for the two continuous dimensions, ordered
+kernels on `cut` and `color`, and a Gower kernel on `clarity`. First we
+construct the power exponential kernel that ignores the 3 factor
+dimensions. Then we construct
+
+``` r
+cts_kernel <- k_IgnoreIndsKernel(k=k_PowerExp(D=2), ignoreinds = c(2,3,4))
+factor_kernel2 <- k_OrderedFactorKernel(D=5, xindex=2, nlevels=nlevels(diamonds_subset[[2]]))
+factor_kernel3 <- k_OrderedFactorKernel(D=5, xindex=3, nlevels=nlevels(diamonds_subset[[3]]))
+factor_kernel4 <- k_GowerFactorKernel(D=5, xindex=4, nlevels=nlevels(diamonds_subset[[4]]))
+
+# Multiply them
+diamond_kernel <- cts_kernel * factor_kernel2 * factor_kernel3 * factor_kernel4
+```
+
+Now we can pass this kernel into `gpkm` and it will use it.
+
+``` r
+dm <- gpkm(price ~ carat + cut + color + clarity + depth,
+           diamonds_subset, kernel=diamond_kernel)
+dm$plotkernel()
+```
+
+![](tools/README-diamond_construct_kernel_fit-1.png)<!-- -->
+
 ## Using kernels
 
 A key modeling decision for Gaussian process models is the choice of
@@ -131,3 +182,53 @@ given in as a data frame and the columns have the proper types, then the
 default kernel will properly handle it by applying the numeric kernel to
 the numeric inputs and the factor kernel to the factor and character
 inputs.
+
+Kernels are stored as R6 objects. They can all be created using the R6
+object generator (e.g., `Matern52$new()`), or using the
+`k_<kernel name>` shortcut function (e.g., `k_Matern52()`). The latter
+is easier to use (and recommended) since R will show the function
+arguments and autocomplete.
+
+The following table shows details on all the kernels available.
+
+| Kernel                | Function                | Continuous/<br />discrete | Equation                                                                             | Notes                                                                                                                                                                                                                                                                       |
+|-----------------------|-------------------------|---------------------------|--------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Gaussian              | `k_Gaussian`            | cts                       |                                                                                      | Often causes issues since it assumes infinite differentiability. Experts don’t recommend using it.                                                                                                                                                                          |
+| Matern 3/2            | `k_Matern32`            | cts                       |                                                                                      | Assumes one time differentiability. This is often too low of an assumption.                                                                                                                                                                                                 |
+| Matern 5/2            | `k_Matern52`            | cts                       |                                                                                      | Assumes two time differentiability. Generally the best.                                                                                                                                                                                                                     |
+| Exponential           | `k_Exponential`         | cts                       |                                                                                      | Equivalent to Matern 1/2. Assumes no differentiability.                                                                                                                                                                                                                     |
+| Triangle              | `k_Triangle`            | cts                       |                                                                                      |                                                                                                                                                                                                                                                                             |
+| Power exponential     | `k_PowerExp`            | cts                       |                                                                                      |                                                                                                                                                                                                                                                                             |
+| Periodic              | `k_Periodic`            | cts                       | $k(x, y) = \sigma^2 * \exp(-\sum(\alpha_i*sin(p * (x_i-y_i))^2))$                    | The only kernel that takes advantage of periodic data. But there is often incoherance far apart, so you will likely want to multiply by one of the standard kernels.                                                                                                        |
+| Cubic                 | `k_Cubic`               | cts                       |                                                                                      |                                                                                                                                                                                                                                                                             |
+| Rational quadratic    | `k_RatQuad`             | cts                       |                                                                                      |                                                                                                                                                                                                                                                                             |
+| Latent factor kernel  | `k_LatentFactorKernel`  | factor                    |                                                                                      | This embeds each discrete value into a low dimensional space and calculates the distances in that space. This works well when there are many discrete values.                                                                                                               |
+| Ordered factor kernel | `k_OrderedFactorKernel` | factor                    |                                                                                      | This maintains the order of the discrete values. E.g., if there are 3 levels, it will ensure that 1 and 2 have a higher correlation than 1 and 3. This is similar to embedding into a latent space with 1 dimension and requiring the values to be kept in numerical order. |
+| Factor kernel         | `k_FactorKernel`        | factor                    |                                                                                      | This fits a parameter for every pair of possible values. E.g., if there are 4 discrete values, it will fit 6 (4 choose 2) values. This doesn’t scale well. When there are many discrete values, use any of the other factor kernels.                                        |
+| Gower factor kernel   | `k_GowerFactorKernel`   | factor                    | $k(x,y) = \begin{cases} 1, & \text{if } x=y \\ p, & \text{if } x \neq y \end{cases}$ | This is a very simple factor kernel. For the relevant dimension, the correlation will either be 1 if the value are the same, or $p$ if they are different.                                                                                                                  |
+| Ignore indices        | `k_IgnoreIndsKernel`    | N/A                       |                                                                                      | Use this to create a kernel that ignores certain dimensions. Useful when you want to fit different kernel types to different dimensions or when there is a mix of continuous and discrete dimensions.                                                                       |
+
+Factor kernels: note that these all only work on a single dimension. If
+there are multiple factor dimensions in your input, then they each will
+be given a different factor kernel.
+
+## Combining kernels
+
+Kernels can be combined by multiplying or adding them directly.
+
+The following example uses the product of a periodic and a Matern 5/2
+kernel to fit periodic data.
+
+``` r
+x <- 1:20
+y <- sin(x) + .1*x^1.3
+combo_kernel <- k_Periodic(D=1) * k_Matern52(D=1)
+gp <- gpkm(x, y, kernel=combo_kernel, nug.min=1e-6)
+#> * nug is at minimum value after optimizing. Check the fit to see it this caused a bad fit. Consider changing nug.min. This is probably fine for noiseless data.
+gp$plot()
+```
+
+![](tools/README-combine_periodic-1.png)<!-- -->
+
+For an example of a more complex kernel being constructed, see the
+diamonds section above.

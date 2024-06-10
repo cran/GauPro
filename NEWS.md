@@ -1,4 +1,10 @@
-# GauPro 0.2.9
+# GauPro 0.2.12
+
+Fixed CRAN warning.
+
+Added `k_xyz(...)` alias for kernels (replaces `xyz$new(...)`)
+
+# GauPro 0.2.11
 
 Fixed unreliable test to keep it on CRAN (again).
 

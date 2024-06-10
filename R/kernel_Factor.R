@@ -1,21 +1,3 @@
-# Kernels should implement:
-# k kernel function for two vectors
-# update_params
-# get_optim_functions: return optim.func, optim.grad, optim.fngr
-# param_optim_lower - lower bound of params
-# param_optim_upper - upper
-# param_optim_start - current param values
-# param_optim_start0 - some central param values that can be used for optimization restarts
-# param_optim_jitter - how to jitter params in optimization
-
-# Suggested
-# deviance
-# deviance_grad
-# deviance_fngr
-# grad
-
-
-
 #' Factor Kernel R6 class
 #'
 #' For a factor that has been converted to its indices.
@@ -350,7 +332,10 @@ FactorKernel <- R6::R6Class(
         vec <- c()
       }
       if (s2_est) {
-        vec <- c(vec, self$logs2 + jitter*rnorm(1))
+        vec <- c(vec, max(min(self$logs2 + jitter * rnorm(1),
+                              self$logs2_upper),
+                          self$logs2_lower)
+        )
       }
       vec
     },
@@ -362,13 +347,16 @@ FactorKernel <- R6::R6Class(
     param_optim_start0 = function(jitter=F, y, p_est=self$p_est,
                                   s2_est=self$s2_est) {
       if (p_est) {
-        vec <- pmin(pmax(rep(0, length(self$p)) + jitter*rnorm(length(self$p), 0, .1),
-                         self$p_lower), self$p_upper)
+        vec <- pmin(
+          pmax(rep(0, length(self$p)) + jitter*rnorm(length(self$p), 0, .1),
+               self$p_lower), self$p_upper)
       } else {
         vec <- c()
       }
       if (s2_est) {
-        vec <- c(vec, self$logs2 + jitter*rnorm(1))
+        vec <- c(vec, max(min(self$logs2 + jitter * rnorm(1),
+                              self$logs2_upper),
+                          self$logs2_lower))
       }
       vec
     },
@@ -425,3 +413,42 @@ FactorKernel <- R6::R6Class(
     }
   )
 )
+
+#' @rdname FactorKernel
+#' @export
+#' @description Initialize kernel object
+#' @param s2 Initial variance
+#' @param D Number of input dimensions of data
+#' @param p_lower Lower bound for p
+#' @param p_upper Upper bound for p
+#' @param p_est Should p be estimated?
+#' @param p Vector of correlations
+#' @param s2_lower Lower bound for s2
+#' @param s2_upper Upper bound for s2
+#' @param s2_est Should s2 be estimated?
+#' @param xindex Index of the factor (which column of X)
+#' @param nlevels Number of levels for the factor
+#' @param useC Should C code used? Not implemented for FactorKernel yet.
+#' @param offdiagequal What should offdiagonal values be set to when the
+#' indices are the same? Use to avoid decomposition errors, similar to
+#' adding a nugget.
+k_FactorKernel <- function(s2=1, D, nlevels, xindex,
+                           p_lower=0, p_upper=.9, p_est=TRUE,
+                           s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE,
+                           p, useC=TRUE, offdiagequal=1-1e-6) {
+  FactorKernel$new(
+    s2=s2,
+    D=D,
+    nlevels=nlevels,
+    xindex=xindex,
+    p_lower=p_lower,
+    p_upper=p_upper,
+    p_est=p_est,
+    s2_lower=s2_lower,
+    s2_upper=s2_upper,
+    s2_est=s2_est,
+    p=p,
+    useC=useC,
+    offdiagequal=offdiagequal
+  )
+}

@@ -1,24 +1,10 @@
-# Kernels should implement:
-# k kernel function for two vectors
-# update_params
-# get_optim_functions: return optim.func, optim.grad, optim.fngr
-# param_optim_lower - lower bound of params
-# param_optim_upper - upper
-# param_optim_start - current param values
-# param_optim_start0 - some central param values that can be used for optimization restarts
-# param_optim_jitter - how to jitter params in optimization
-
-# Suggested
-# deviance
-# deviance_grad
-# deviance_fngr
-# grad
-
-
-
 #' Periodic Kernel R6 class
 #'
 #' p is the period for each dimension, a is a single number for scaling
+#'
+#' \eqn{k(x, y) = s2 * exp(-sum(alpha*sin(p * (x-y))^2))}
+#'
+#' \eqn{k(x, y) = \sigma^2 * \exp(-\sum(\alpha_i*sin(p * (x_i-y_i))^2))}
 #'
 #' @docType class
 #' @importFrom R6 R6Class
@@ -450,3 +436,42 @@ Periodic <- R6::R6Class(
     }
   )
 )
+
+#' @rdname Periodic
+#' @export
+#' @param p Periodic parameter
+#' @param alpha Periodic parameter
+#' @param s2 Initial variance
+#' @param D Number of input dimensions of data
+#' @param p_lower Lower bound for p
+#' @param p_upper Upper bound for p
+#' @param p_est Should p be estimated?
+#' @param alpha_lower Lower bound for alpha
+#' @param alpha_upper Upper bound for alpha
+#' @param alpha_est Should alpha be estimated?
+#' @param s2_lower Lower bound for s2
+#' @param s2_upper Upper bound for s2
+#' @param s2_est Should s2 be estimated?
+#' @param useC Should C code used? Much faster if implemented.
+k_Periodic <- function(p, alpha=1, s2=1, D,
+                       p_lower=0, p_upper=1e2, p_est=TRUE,
+                       alpha_lower=0, alpha_upper=1e2, alpha_est=TRUE,
+                       s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE,
+                       useC=TRUE) {
+  Periodic$new(
+    p=p,
+    alpha=alpha,
+    s2=s2,
+    D=D,
+    p_lower=p_lower,
+    p_upper=p_upper,
+    p_est=p_est,
+    alpha_lower=alpha_lower,
+    alpha_upper=alpha_upper,
+    alpha_est=alpha_est,
+    s2_lower=s2_lower,
+    s2_upper=s2_upper,
+    s2_est=s2_est,
+    useC=useC
+  )
+}

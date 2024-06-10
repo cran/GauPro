@@ -1,22 +1,3 @@
-# Kernels should implement:
-# k kernel function for two vectors
-# update_params
-# get_optim_functions: return optim.func, optim.grad, optim.fngr
-# param_optim_lower - lower bound of params
-# param_optim_upper - upper
-# param_optim_start - current param values
-# param_optim_start0 - some central param values that can be used for
-#  optimization restarts
-# param_optim_jitter - how to jitter params in optimization
-
-# Suggested
-# deviance
-# deviance_grad
-# deviance_fngr
-# grad
-
-
-
 #' Ordered Factor Kernel R6 class
 #'
 #' Use for factor inputs that are considered to have an ordering
@@ -385,7 +366,10 @@ OrderedFactorKernel <- R6::R6Class(
         vec <- c()
       }
       if (s2_est) {
-        vec <- c(vec, self$logs2 + jitter*rnorm(1))
+        vec <- c(vec,
+                 max(min(self$logs2 + jitter * rnorm(1),
+                         self$logs2_upper),
+                     self$logs2_lower))
       }
       vec
     },
@@ -404,7 +388,9 @@ OrderedFactorKernel <- R6::R6Class(
         vec <- c()
       }
       if (s2_est) {
-        vec <- c(vec, self$logs2 + jitter*rnorm(1))
+        vec <- c(vec, max(min(self$logs2 + jitter * rnorm(1),
+                              self$logs2_upper),
+                          self$logs2_lower))
       }
       vec
     },
@@ -473,3 +459,38 @@ OrderedFactorKernel <- R6::R6Class(
   )
 )
 
+#' @rdname OrderedFactorKernel
+#' @export
+#' @param s2 Initial variance
+#' @param D Number of input dimensions of data
+#' @param p_lower Lower bound for p
+#' @param p_upper Upper bound for p
+#' @param p_est Should p be estimated?
+#' @param s2_lower Lower bound for s2
+#' @param s2_upper Upper bound for s2
+#' @param s2_est Should s2 be estimated?
+#' @param xindex Index of the factor (which column of X)
+#' @param nlevels Number of levels for the factor
+#' @param useC Should C code used? Not implemented for FactorKernel yet.
+#' @param offdiagequal What should offdiagonal values be set to when the
+#' indices are the same? Use to avoid decomposition errors, similar to
+#' adding a nugget.
+k_OrderedFactorKernel <- function(s2=1, D, nlevels, xindex,
+                                  p_lower=1e-8, p_upper=5, p_est=TRUE,
+                                  s2_lower=1e-8, s2_upper=1e8, s2_est=TRUE,
+                                  useC=TRUE, offdiagequal=1-1e-6) {
+  OrderedFactorKernel$new(
+    s2=s2,
+    D=D,
+    nlevels=nlevels,
+    xindex=xindex,
+    p_lower=p_lower,
+    p_upper=p_upper,
+    p_est=p_est,
+    s2_lower=s2_lower,
+    s2_upper=s2_upper,
+    s2_est=s2_est,
+    useC=useC,
+    offdiagequal=offdiagequal
+  )
+}
