@@ -11,8 +11,8 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom stats optim
 # @keywords data, kriging, Gaussian process, regression
-#' @return Object of \code{\link{R6Class}} with methods for fitting GP model.
-#' @format \code{\link{R6Class}} object.
+#' @return Object of \code{\link[R6]{R6Class}} with methods for fitting GP model.
+#' @format \code{\link[R6]{R6Class}} object.
 #' @field p Parameter for correlation
 #' @field p_est Should p be estimated?
 #' @field p_lower Lower bound of p
@@ -35,6 +35,7 @@
 #'
 #'
 #' # 2D, Gaussian on 1D, index on 2nd dim
+#' if (requireNamespace("dplyr", quietly=TRUE)) {
 #' library(dplyr)
 #' n <- 20
 #' X <- cbind(matrix(runif(n,2,6), ncol=1),
@@ -64,7 +65,7 @@
 #' # See which points affect (5.5, 3 themost)
 #' data.frame(X, cov=gp$kernel$k(X, c(5.5,3))) %>% arrange(-cov)
 #' plot(k2b)
-#'
+#' }
 #'
 # GowerFactorKernel ----
 GowerFactorKernel <- R6::R6Class(

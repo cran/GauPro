@@ -1,8 +1,15 @@
+# GauPro 0.2.13
+
+Fixed Suggests issue to get back on CRAN. Packages in Suggests were moved
+to Depends, removed, or protected by requireNamespace.
+
 # GauPro 0.2.12
 
 Fixed CRAN warning.
 
 Added `k_xyz(...)` alias for kernels (replaces `xyz$new(...)`)
+
+Accepted to CRAN on 6/10/24.
 
 # GauPro 0.2.11
 
