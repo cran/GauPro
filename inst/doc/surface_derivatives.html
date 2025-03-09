@@ -12,7 +12,7 @@
 
 <meta name="author" content="Collin Erickson" />
 
-<meta name="date" content="2024-09-24" />
+<meta name="date" content="2025-03-09" />
 
 <title>Spatial derivatives of Gaussian process models</title>
 
@@ -263,7 +263,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h1 class="title toc-ignore">Spatial derivatives of Gaussian process
 models</h1>
 <h4 class="author">Collin Erickson</h4>
-<h4 class="date">2024-09-24</h4>
+<h4 class="date">2025-03-09</h4>
 
 
 
@@ -284,7 +284,7 @@ conditional on the data <span class="math inline">\(Y_X\)</span>. Thus
 <span class="math inline">\(y(x) = Y_x | Y_X\)</span>, and <span class="math inline">\(y(x)\)</span> is a random variable with
 distribution</p>
 <p><span class="math display">\[ y(x) \sim N \left( \mu_x + \Sigma_{xX}
-\Sigma_x^{-1}(Y_X - \mu_X) , ~\Sigma_x + \Sigma_{xX} \Sigma_X^{-1}
+\Sigma_x^{-1}(Y_X - \mu_X) , ~\Sigma_x - \Sigma_{xX} \Sigma_X^{-1}
 \Sigma_{Xx}\right)\]</span></p>
 <div id="gradient-of-mean-function" class="section level1">
 <h1>Gradient of mean function</h1>
@@ -473,7 +473,7 @@ the distribution of the gradient.</p>
 \frac{\partial y(x)}{\partial x} | Y_X
 \sim
 N(\frac{\partial \Sigma(x,X)}{\partial x}^T \Sigma_X^{-1} (Y_X - \mu_X),
-\frac{\partial^2 \Sigma(x_1, x_2)}{\partial x_1 \partial x_2}  +
+\frac{\partial^2 \Sigma(x_1, x_2)}{\partial x_1 \partial x_2}  -
 \frac{\partial \Sigma(x_1, X)}{\partial x_1} \Sigma_x^{-1}
 \frac{\partial \Sigma(X, x_2)}{\partial x_2} |_{x_1=x,x_2=x})
 \]</span></p>
